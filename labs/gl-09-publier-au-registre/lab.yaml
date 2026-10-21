@@ -1,0 +1,30 @@
+# Lab gl-09-publier-au-registre. Les champs marqués REQUIS sont exigés par le validator :
+# sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-09-publier-au-registre                # REQUIS
+title: "Publish the image, and keep it traceable"   # REQUIS
+level: c2                     # REQUIS
+description: "The pipeline builds an image and throws it away. Publish it to the project registry under a tag that names the commit, from the pipeline itself. Graded on the registry, on the tag, and on the job log that pushed it."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - registry
+  - images
+  - supply-chain
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-09-publier-registry/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 30m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

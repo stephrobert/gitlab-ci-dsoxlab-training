@@ -1,0 +1,3 @@
+id: gl-09-publier-au-registre
+title: "Publier l'image, et la garder traçable"
+description: "Le pipeline construit une image et la jette. La publier dans le registre du projet, sous un tag qui nomme le commit, depuis le pipeline lui-même. La note porte sur le registre, sur le tag, et sur le journal du job qui l'a poussée."

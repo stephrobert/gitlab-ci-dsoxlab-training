@@ -1,0 +1,139 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline qui construit une image et la
+# jette, et un registre de projet vide.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-09-publier-au-registre
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-09"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-09` construit l'image et s'arrête là : rien n'est publié.
+    # L'image existe le temps du job, puis disparaît avec lui, et personne ne
+    # peut la déployer.
+    #
+    # `adapter_registre_local` dit au service Docker que le registre de la
+    # forge est en clair. Sans cela, le `docker login` du lab échouerait sur
+    # « http: server gave HTTP response to HTTPS client », ce qui est un
+    # problème de la forge du lab, pas du travail de l'apprenant.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-09"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true
+
+    # LE STARTER AMONT PUBLIE DEJA L'IMAGE, ce qui priverait ce lab de son
+    # sujet. Constat du 2026-10-22 : la branche `starter/lab-09` porte un job
+    # qui construit DEUX tags, s'authentifie au registre et pousse les deux.
+    # La publication a en realite ete introduite des `solution/lab-04` du
+    # depot fil rouge, cinq labs avant la page qui pretend l'enseigner. Un
+    # apprenant qui ouvrirait ce lab trouverait son travail deja fait.
+    #
+    # Le setup ramene donc le job a ce que le scenario decrit : une image
+    # construite, nommee localement, et jamais publiee. Le corrige la publiera.
+    # La divergence est assumee et declaree ; le constat amont est consigne
+    # dans `todo/defauts-fr-gitlab-remontes.md` cote site, a cote de celui sur
+    # le tag `latest`.
+    - name: Ramener le job de construction a une image non publiee
+      ansible.builtin.replace:
+        path: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        regexp: '(?m)^    - docker build -t \$CI_REGISTRY_IMAGE.*\n(?:^    - docker (?:build|login|push).*\n)*'
+        replace: "    - docker build -t pipeline-craft:$CI_COMMIT_SHORT_SHA .\n"
+      register: publication_retiree
+
+    - name: Le job de construction ne publie plus rien
+      ansible.builtin.shell: |
+        set -o pipefail
+        if grep -q 'docker push' "$TRAVAIL/$PROJET/.gitlab-ci.yml"; then
+          echo "le job publie encore : le lab n aurait plus d objet"
+          grep -n 'docker ' "$TRAVAIL/$PROJET/.gitlab-ci.yml"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      changed_when: false
+
+    # Le jeton est interpole par le shell DE LA VM, comme partout ailleurs
+    # dans ce catalogue : il reste hors de la liste des processus et de toute
+    # trace d'echec.
+    # `noqa: no-handler` est delibere : un handler tournerait a la FIN du play,
+    # alors que la tache suivante verifie le registre d_un projet qui doit
+    # deja porter cet etat de depart.
+    - name: Pousser l_etat de depart ainsi ramene  # noqa: no-handler
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        git add -A
+        git diff --cached --quiet || git commit -q -m "chore: etat de depart du lab, sans publication"
+        git push -q --force "http://oauth2:$JETON@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      when: publication_retiree is changed
+      changed_when: true
+      no_log: true
+
+    # Une image laissée par un passage précédent ferait démarrer le lab à
+    # moitié fait. On repart donc d'un registre de projet vide, et on le
+    # vérifie.
+    #
+    # Ce sont les TAGS qu'il faut retirer, pas les dépôts : la suppression d'un
+    # dépôt de registre est asynchrone et peut prendre bien plus longtemps
+    # qu'un lab (mesuré le 2026-10-22, soixante secondes ne suffisent pas),
+    # alors que la suppression d'un tag est immédiate.
+    - name: Aucune image ne doit preexister dans le registre
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+
+        for DEPOT in $(curl -sS --header "$H" \
+          "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+          for TAG in $(curl -sS --header "$H" \
+            "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+            | jq -r '.[]?.name'); do
+            curl -sS --header "$H" --request DELETE \
+              "$API/projects/$ID/registry/repositories/$DEPOT/tags/$TAG" >/dev/null
+          done
+        done
+
+        RESTE=0
+        for DEPOT in $(curl -sS --header "$H" \
+          "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+          N=$(curl -sS --header "$H" \
+            "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+            | jq '[.[]?] | length')
+          RESTE=$((RESTE + N))
+        done
+        if [ "$RESTE" -ne 0 ]; then
+          echo "il reste $RESTE image(s) dans le registre du projet"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: true

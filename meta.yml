@@ -64,6 +64,7 @@ sections:
       - gl-06-controler-execution
       - gl-07-valider-avant-de-pousser
       - gl-08-declencher-autrement
+      - gl-09-publier-au-registre
 
   - id: livrer
     title: "Deliver"
