@@ -1,0 +1,34 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline qui teste sans jamais dire
+# combien de code ses tests traversent.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-10-rapports-de-qualite
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-10"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-10` publie déjà le rapport JUnit, acquis du lab 04 : l'onglet
+    # Tests du pipeline est rempli. Ce qui manque est la **couverture** : rien
+    # ne dit quelle part du code les tests traversent, ni dans le pipeline, ni
+    # dans la demande de fusion.
+    #
+    # `adapter_registre_local` reste nécessaire : ce starter pousse l'image.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-10"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true

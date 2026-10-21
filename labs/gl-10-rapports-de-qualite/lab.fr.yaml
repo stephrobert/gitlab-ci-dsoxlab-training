@@ -1,0 +1,3 @@
+id: gl-10-rapports-de-qualite
+title: "Faire dire au pipeline ce qu'il couvre"
+description: "Les tests tournent et ne disent rien de la part de code qu'ils traversent. Imprimer la couverture, laisser GitLab la pêcher dans le journal, et publier un rapport qui montre les lignes non couvertes dans une demande de fusion. La note porte sur ce qui est arrivé à GitLab, pas sur le fichier."

@@ -65,6 +65,7 @@ sections:
       - gl-07-valider-avant-de-pousser
       - gl-08-declencher-autrement
       - gl-09-publier-au-registre
+      - gl-10-rapports-de-qualite
 
   - id: livrer
     title: "Deliver"

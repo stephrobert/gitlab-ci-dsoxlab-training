@@ -1,0 +1,30 @@
+# Lab gl-10-rapports-de-qualite. Les champs marqués REQUIS sont exigés par le validator :
+# sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-10-rapports-de-qualite                # REQUIS
+title: "Make the pipeline say what it covers"   # REQUIS
+level: c2                     # REQUIS
+description: "The tests run and say nothing about how much code they go through. Print the coverage, let GitLab fish it out of the log, and publish a report that shows the uncovered lines in a merge request. Graded on what reached GitLab, not on the file."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - coverage
+  - reports
+  - artifacts
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-10-rapports-qualite/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 30m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
