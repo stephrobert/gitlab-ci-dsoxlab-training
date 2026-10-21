@@ -1,0 +1,39 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline qui marche et qui perd son temps
+# de deux façons.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien. Il règle aussi
+# `concurrent = 3` sur le runner, sans quoi ce lab n'aurait aucun effet
+# observable : un runner qui ne prend qu'un job à la fois fera attendre les
+# jobs quoi que leur `needs:` autorise.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-12-accelerer-le-pipeline
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-12"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-12` porte deux gaspillages, et le premier est le plus
+    # sournois : la clé du cache vaut `$CI_COMMIT_SHA`. Un cache dont la clé
+    # change à chaque commit n'est JAMAIS retrouvé. Il est créé, stocké,
+    # facturé en espace disque, et jamais relu. Rien ne le signale : les jobs
+    # réussissent, le cache « fonctionne », et il ne sert à rien.
+    #
+    # Le second est l'enchaînement : les jobs attendent leur stage alors que
+    # rien ne les lie.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-12"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true

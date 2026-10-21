@@ -427,8 +427,27 @@
         backrefs: false
       register: volumes_runner
 
+    # LE RUNNER NE PRENAIT QU'UN JOB A LA FOIS, et c'est le defaut par defaut :
+    # `gitlab-runner register` ecrit `concurrent = 1`. Aucun lab ne s'en
+    # plaignait jusqu'ici, mais un lab sur le PARALLELISME n'a alors aucun
+    # effet observable : `needs:` peut liberer un job de son stage, le runner
+    # le fera quand meme attendre son tour, et la duree du pipeline ne bougera
+    # pas d'une seconde.
+    #
+    # Trois jobs simultanes sur une VM a quatre vCPU, en laissant de la marge
+    # pour le demon Docker qu'un job de construction demarre a cote.
+    - name: Le runner prend plusieurs jobs a la fois
+      ansible.builtin.lineinfile:
+        path: /etc/gitlab-runner/config.toml
+        regexp: '^concurrent = '
+        line: 'concurrent = 3'
+      register: concurrence_runner
+
     - name: Le service du runner tourne
       ansible.builtin.systemd_service:
         name: gitlab-runner
-        state: "{{ 'restarted' if volumes_runner is changed else 'started' }}"
+        state: >-
+          {{ 'restarted'
+             if (volumes_runner is changed or concurrence_runner is changed)
+             else 'started' }}
         enabled: true

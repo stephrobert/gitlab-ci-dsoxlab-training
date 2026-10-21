@@ -58,6 +58,25 @@ repos:
       # il se remplace par la ponctuation qui dit son rôle. Mesuré sur un
       # catalogue sans ce hook : 51 `lab.fr.yaml`, 172 README de labs et 86
       # scénarios en portaient un.
+      # Un import oublie dans un test passe `pytest --collect-only` et casse
+      # a l'appel, dix minutes plus tard, sur une VM. Mesure le 2026-10-22 sur
+      # le lab 12 : « NameError: name 're' is not defined ».
+      - id: tests-des-labs-complets
+        name: les tests des labs ont tous leurs noms
+        entry: python3 scripts/check-tests.py
+        language: system
+        pass_filenames: false
+
+      # Un playbook refuse AU CHARGEMENT ne tourne pas du tout, et le message
+      # ne nomme pas la ligne fautive. Deux causes connues : `${#VAR}`, que
+      # Jinja lit comme un commentaire ouvert, et une apostrophe dans un
+      # commentaire de script embarque.
+      - id: playbooks-se-chargent
+        name: tous les playbooks se chargent
+        entry: python3 scripts/check-playbooks.py
+        language: system
+        pass_filenames: false
+
       - id: pas-de-tiret-cadratin
         name: ni emoji ni tiret cadratin dans ce que lit l'apprenant
         entry: python3 tests/outils/pas_de_tiret_cadratin.py

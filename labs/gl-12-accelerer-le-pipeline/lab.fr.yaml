@@ -1,0 +1,3 @@
+id: gl-12-accelerer-le-pipeline
+title: "Un cache qu'on ne retrouve jamais, et des jobs qui attendent pour rien"
+description: "Le pipeline marche et perd son temps de deux façons : la clé de son cache change à chaque commit, donc le cache n'est jamais relu, et ses jobs font la queue derrière des étapes qui ne les concernent pas. La note porte sur un cache restauré et sur deux jobs qui se chevauchent dans le temps."

@@ -67,6 +67,7 @@ sections:
       - gl-09-publier-au-registre
       - gl-10-rapports-de-qualite
       - gl-11-diagnostiquer-un-job-bloque
+      - gl-12-accelerer-le-pipeline
 
   - id: livrer
     title: "Deliver"

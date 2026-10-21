@@ -184,12 +184,17 @@ def test_le_cache_a_servi_au_moins_une_fois(traces_du_dernier):
     passerait sur un pipeline unique, cache jamais relu. On exige donc une
     RESTAURATION, ce qui suppose un second passage du pipeline.
     """
-    motifs = (
-        "restoring cache",
-        "successfully extracted cache",
-        "checking cache for",
-    )
-    assert any(m in traces_du_dernier for m in motifs), message(
+    # UN SEUL MOTIF EST PROPRE AU SUCCES, et c'est une correction du
+    # 2026-10-22. GitLab Runner ecrit « Restoring cache » puis « Checking cache
+    # for <cle> » AVANT de savoir si le cache existe : les deux apparaissent
+    # donc aussi quand il est absent, suivies d'un avertissement. Les accepter
+    # rendait ce test complaisant.
+    #
+    # Ce lab y echappait parce que son etat de depart n'a aucun cache declare,
+    # donc aucune de ces lignes ; le lab 12, lui, part d'un cache declare mais
+    # introuvable, et le test y passait avant tout travail. Le motif se
+    # resserre donc dans les deux, par principe.
+    assert "successfully extracted cache" in traces_du_dernier, message(
         en=(
             "No job log shows a cache being restored. A cache is created on the "
             "first run and only restored on the next one: run the pipeline a "

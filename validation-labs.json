@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 01:27:54",
+  "genere_le": "2026-10-22 01:58:23",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -46,10 +46,10 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "3/3",
-      "duree_s": 209.0,
+      "duree_s": 205.5,
       "traces": [],
       "pourquoi": "",
-      "date": "2026-10-21"
+      "date": "2026-10-22"
     },
     "gl-05-sortir-les-secrets": {
       "id": "gl-05-sortir-les-secrets",
@@ -131,6 +131,18 @@
       "score_apres": 100,
       "tests": "2/2",
       "duree_s": 127.2,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-12-accelerer-le-pipeline": {
+      "id": "gl-12-accelerer-le-pipeline",
+      "chemin": "gl-12-accelerer-le-pipeline",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "2/2",
+      "duree_s": 235.9,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
