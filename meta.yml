@@ -1,0 +1,83 @@
+# Catalogue gitlab-ci-dsoxlab-training, décrit par le contrat v1 de dsoxlab.
+#
+# `repo.id` sert de clé pour l'état local de ce catalogue : le changer
+# déplace ces emplacements.
+schema_version: 1
+
+repo:
+  id: gitlab-ci-dsoxlab-training
+  category: gitlab-ci
+  title: GitLab CI/CD
+  description: |
+    Write a GitLab CI/CD pipeline, read its failures, make data flow between
+    jobs, take secrets out of the code, control when it runs, publish to the
+    registry, then industrialise it: factor the YAML, speed it up with a DAG
+    and matrices, orchestrate several pipelines and make it reliable.
+
+    Every lab runs against a real GitLab CE instance and its runner, and is
+    graded on the state of the pipeline it leaves behind, read from the API,
+    never on the commands typed. The application under test is the FastAPI
+    project `pipeline-craft`, pushed into the lab forge.
+
+# Une VM unique porte GitLab CE et son runner, sur le modèle de
+# `cicd-dsoxlab-training` qui fait tenir Forgejo et son runner sur un seul
+# hôte. Le dimensionnement n'est pas une estimation : il reprend celui du lab
+# d'installation `~/Projets/lab-gitlab`, qui déploie GitLab CE sur KVM et
+# attend jusqu'à 600 secondes que l'instance réponde. GitLab CE est deux fois
+# plus gourmand que Forgejo, et c'est le prix du vrai moteur : rien d'autre ne
+# permet de noter un `environment:`, un artefact côté serveur ou un registre.
+infra:
+  provider: kvm
+  network: lab-gitlab-ci
+  cidr: 10.10.95.0/24
+  hosts:
+    - name: gitlab-1.lab
+      distro: ubuntu24
+      role: forge
+      ram_mb: 8192
+      vcpu: 4
+      disk_gb: 50
+
+# Les sections suivent les QUATRE NIVEAUX du parcours du site
+# (`src/data/parcours/gitlab-ci.yaml`), et non les deux blocs du plan
+# historique de `pipeline-craft`. Raison : le catalogue doit se lire comme la
+# formation qu'il valide, sinon on tient deux découpages en parallèle, ce que
+# la règle K du socle interdit.
+#
+# La section `securiser` est VIDE, et c'est voulu : c'est le trou que l'audit
+# du 2026-10-21 a trouvé. Tout le niveau C4 (sept leçons de sécurité, trois
+# d'outillage) n'a aucune pratique. Une section vide le montre ; l'absence de
+# section le cacherait.
+sections:
+  - id: ecrire
+    title: "Write a pipeline and read its failures"
+    description: >-
+      A first green pipeline, a failure read in its log and fixed, the right
+      image and the runner that picks the job, artifacts and cache, secrets out
+      of the code, and control over when each job runs.
+    labs:
+      - gl-01-premier-pipeline
+
+  - id: livrer
+    title: "Deliver"
+    description: >-
+      Deploy per environment, read quality reports in the merge request,
+      diagnose a job stuck in pending or silently skipped, and publish an image
+      to the registry.
+    labs: []
+
+  - id: industrialiser
+    title: "Industrialise"
+    description: >-
+      Factor the YAML with extends and anchors, externalise templates, speed
+      the pipeline up with a DAG and matrices, orchestrate parent and child
+      pipelines, and make the whole thing reliable.
+    labs: []
+
+  - id: securiser
+    title: "Secure and tool"
+    description: >-
+      Not written yet. This is the gap the audit of 2026-10-21 found: the whole
+      C4 level of the course, seven security lessons and three on tooling, has
+      no hands-on practice at all. Labs 20 to 25 of the plan belong here.
+    labs: []

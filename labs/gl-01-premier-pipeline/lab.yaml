@@ -1,0 +1,33 @@
+# Lab gl-01-premier-pipeline. Les champs marqués REQUIS sont exigés par le validator : sans eux,
+# le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-01-premier-pipeline                      # REQUIS
+title: "Your first pipeline, green, on your own GitLab"            # REQUIS
+level: c1                     # REQUIS
+description: "Push the FastAPI project to the lab GitLab, write the pipeline that lints, tests and builds it, and get it green. Graded on the pipeline the server really ran, read from the API, never on the file you wrote."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - pipeline
+  - stages
+  - jobs
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-01-premier-pipeline/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 45m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session, comme sur `cicd-dsoxlab-training` :
+  # une forge se manipule depuis sa propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  # Rien à vérifier après un redémarrage : ce lab note un pipeline, pas un
+  # service qui doit survivre au reboot. Le lab d'installation de GitLab s'en
+  # charge ailleurs.
+  persistence_after_reboot: false

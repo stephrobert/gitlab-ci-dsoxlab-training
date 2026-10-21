@@ -1,0 +1,19 @@
+{
+  "genere_le": "2026-10-21 23:00:45",
+  "act": "act version 0.2.84",
+  "dsoxlab": "dsoxlab 0.5.5",
+  "labs": {
+    "gl-01-premier-pipeline": {
+      "id": "gl-01-premier-pipeline",
+      "chemin": "gl-01-premier-pipeline",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 107.6,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-21"
+    }
+  }
+}

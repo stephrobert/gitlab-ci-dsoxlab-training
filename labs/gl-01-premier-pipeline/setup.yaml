@@ -1,0 +1,246 @@
+---
+# Joué par `dsoxlab run` avant d'ouvrir la session : il pose la situation que
+# le scénario décrit, à savoir le dépôt fil rouge dans la forge et AUCUN
+# pipeline.
+#
+# Le socle commun fait le gros du travail (GitLab CE, son runner, le jeton
+# d'administration) et il est idempotent : au second lab, il ne réinstalle
+# rien. C'est pour cela qu'il est importé et non recopié.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-01-premier-pipeline
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    branche: "main"
+    url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-01"
+    bundle_source: "{{ playbook_dir }}/../_commun/depot/pipeline-craft.bundle"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    - name: Repertoire de travail du lab
+      ansible.builtin.file:
+        path: "{{ travail }}"
+        state: directory
+        mode: "0755"
+
+    # LE DEPOT FIL ROUGE ARRIVE PAR UN BUNDLE GIT, et ce n'est pas un detail
+    # de mise en oeuvre. Les 19 pages de lab du site decrivent le depot REEL
+    # `pipeline-craft` : ses chemins (`app/main.py`, `requirements-dev.txt`),
+    # ses messages d'erreur releves a l'execution, et sa convention de
+    # branches `starter/lab-NN`. Reconstruire une arborescence differente
+    # ferait diverger la consigne de son corrige.
+    #
+    # Le bundle se fabrique par `scripts/fabriquer-bundle.sh`, qui en exclut
+    # deliberement les branches `solution/*` : elles sont la reponse, et elles
+    # restent cote formateur.
+    - name: Le depot fil rouge, en bundle
+      ansible.builtin.copy:
+        src: "{{ bundle_source }}"
+        dest: "{{ bundle_cible }}"
+        mode: "0644"
+
+    - name: Le projet existe-t-il deja dans la forge ?
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        CODE=$(curl -sS -o /dev/null -w '%{http_code}' \
+          --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/root%2F$PROJET")
+        test "$CODE" = "200"
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ url }}"
+      register: projet_present
+      changed_when: false
+      failed_when: false
+
+    # LA DETECTION PORTE SUR LE CHEMIN EXACT, et c'est la correction d'un
+    # defaut mesure le 2026-10-21. La premiere version cherchait
+    # `?search=pipeline-craft`, une recherche APPROCHANTE : elle trouvait donc
+    # le projet que `dsoxlab clean` venait de mettre en retention, que GitLab
+    # renomme en `pipeline-craft-deletion_scheduled-1` et passe EN LECTURE
+    # SEULE. Le setup croyait le projet present, sautait sa creation, et
+    # poussait dans un projet mort : 403 sur tout, y compris sur la solution du
+    # formateur, avec trois symptomes differents pour une seule cause.
+    - name: Creer le projet dans la forge
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        curl -sS --fail --header "PRIVATE-TOKEN: $JETON" \
+          --data "name=$PROJET" \
+          --data "path=$PROJET" \
+          --data "visibility=private" \
+          --data "initialize_with_readme=false" \
+          "$URL/api/v4/projects" >/dev/null
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ url }}"
+      when: projet_present.rc != 0
+      changed_when: true
+
+    - name: La copie de travail existe-t-elle deja ?
+      ansible.builtin.stat:
+        path: "{{ travail }}/{{ projet }}/.git"
+      register: deja_git
+
+    # Le clone part du bundle, donc l'historique du depot arrive avec son
+    # code : l'apprenant retrouve les commits que les pages citent. Le remote
+    # est ensuite repointe vers la forge, sinon `git push` ecrirait dans le
+    # fichier bundle.
+    #
+    # DEUX REGLES D'ECRITURE S'APPLIQUENT A CE SCRIPT, et chacune vient d'un
+    # echec mesure le 2026-10-21. Les deux produisent le MEME message, qui ne
+    # nomme pas la ligne fautive :
+    #
+    #     failed at splitting arguments, either an unbalanced jinja2 block
+    #     or quotes
+    #
+    # et l'echec arrive AU CHARGEMENT du playbook : rien ne tourne.
+    #
+    #   1. Aucune variable Jinja dans le script. La premiere version melait
+    #      `$JETON@hote` et `{{ projet }}` dans la meme chaine. Les valeurs
+    #      passent donc par `environment:`, et le script ne voit que des
+    #      variables de shell.
+    #   2. Aucune apostrophe dans les commentaires du script. Ansible decoupe
+    #      la chaine a la facon d'un shell, et une apostrophe y ouvre parfois
+    #      une citation qui ne se ferme jamais. « Parfois » est le mot juste :
+    #      un bloc a une apostrophe est refuse, un bloc a trois passe, et
+    #      aucune regle simple n'a resiste a la mesure. Les explications
+    #      montent donc ici, en commentaire YAML, ou l'apostrophe ne risque
+    #      rien, et `scripts/check-playbooks.py` tranche en chargeant
+    #      reellement chaque playbook.
+    #
+    # Ce que fait le script, du coup, sans l'expliquer de l'interieur : il
+    # clone le bundle, retire le remote qui pointe vers le fichier, pousse la
+    # branche dans la forge avec le jeton interpole par le shell DE LA VM
+    # (donc hors de la liste des processus et hors de toute trace d'echec),
+    # puis repointe `origin` vers l'URL propre. L'apprenant retrouve un depot
+    # normal, qui lui demandera ses identifiants au prochain push.
+    - name: Cloner le depot fil rouge et le pousser dans la forge
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        rm -rf "$TRAVAIL/$PROJET"
+        git clone -q --branch "$BRANCHE" "$BUNDLE" "$TRAVAIL/$PROJET"
+        cd "$TRAVAIL/$PROJET"
+        git remote remove origin
+        git push -q "http://oauth2:$JETON@gitlab-1.lab/root/$PROJET.git" "$BRANCHE"
+        git remote add origin "$URL/root/$PROJET.git"
+        git branch --set-upstream-to=origin/"$BRANCHE" "$BRANCHE" 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+        BRANCHE: "{{ branche }}"
+        BUNDLE: "{{ bundle_cible }}"
+        URL: "{{ url }}"
+      when: not deja_git.stat.exists
+      changed_when: true
+      no_log: true
+
+    # LE POINT QUI FAIT LE LAB : le depot arrive SANS `.gitlab-ci.yml`. La
+    # branche `main` du depot amont n'en porte pas, et c'est verifie ici
+    # plutot que suppose : si le depot evoluait, le lab perdrait son sujet
+    # sans un mot.
+    - name: Aucun fichier de pipeline ne doit preexister
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        CODE=$(curl -sS -o /dev/null -w '%{http_code}' \
+          --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/root%2F$PROJET/repository/files/%2Egitlab-ci%2Eyml/raw?ref=$BRANCHE")
+        if [ "$CODE" != "404" ]; then
+          echo "la branche $BRANCHE porte deja un .gitlab-ci.yml (HTTP $CODE) :"
+          echo "le lab n'a plus d'objet, le bundle doit etre refait."
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        BRANCHE: "{{ branche }}"
+        URL: "{{ url }}"
+      changed_when: false
+
+    # Le socle vide desormais le cache des reglages, ce qui supprime la cause.
+    # Cette tache reste le GARDE-FOU : GitLab cree ses pipelines par un worker
+    # asynchrone, et un relevé unique peut tomber juste avant son arrivee. Le
+    # premier essai de cette tache en a fait les frais : la suppression a rendu
+    # une liste vide, puis le pipeline est apparu une seconde plus tard et le
+    # lab a demarre avec 25/100.
+    #
+    # On boucle donc jusqu'a DEUX releves vides consecutifs, ce qui laisse au
+    # worker le temps de se manifester.
+    #
+    # Pourquoi cela compte plus qu'un detail d'affichage : sans cette tache,
+    # `test_les_etapes_sont_visibles` passait GRACE AUX STAGES D'AUTO DEVOPS.
+    # L'apprenant partait avec 25/100 sans avoir ecrit une ligne, et un test
+    # qui passe sans mesurer ce qu'il annonce est pire qu'un test rouge.
+    #
+    # PAS de `no_log` ici, et c'est delibere : la tache ne manipule aucun
+    # secret en sortie, et la version masquee de son premier echec ne disait
+    # rien d'autre que « {'censored': ... } ».
+    - name: Effacer les pipelines que l'apprenant n'a pas demandes
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        # Par le chemin exact, jamais par une recherche approchante : voir la
+        # tache de detection plus haut.
+        ID=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/root%2F$PROJET" | jq -r '.id // empty')
+        if [ -z "$ID" ]; then
+          echo "projet $PROJET introuvable dans la forge"
+          exit 1
+        fi
+        VIDES=0
+        for ESSAI in 1 2 3 4 5 6 7 8 9 10; do
+          for PID in $(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+            "$URL/api/v4/projects/$ID/pipelines?per_page=100" | jq -r '.[].id'); do
+            curl -sS --header "PRIVATE-TOKEN: $JETON" \
+              --request DELETE "$URL/api/v4/projects/$ID/pipelines/$PID" >/dev/null
+          done
+          sleep 4
+          RESTE=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+            "$URL/api/v4/projects/$ID/pipelines" | jq 'length')
+          if [ "$RESTE" -eq 0 ]; then
+            VIDES=$((VIDES + 1))
+            if [ "$VIDES" -ge 2 ]; then
+              echo "onglet Pipelines vide, confirme deux fois de suite"
+              exit 0
+            fi
+          else
+            echo "essai $ESSAI : $RESTE pipeline(s) encore la, on recommence"
+            VIDES=0
+          fi
+        done
+        echo "des pipelines reapparaissent sans arret : Auto DevOps est-il bien eteint ?"
+        exit 1
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ url }}"
+      changed_when: true
+
+    - name: Rappeler a l'apprenant ou se trouve son projet
+      ansible.builtin.copy:
+        content: |
+          Le projet est dans la forge : {{ url }}/root/{{ projet }}
+          Identifiants d'administration : root, mot de passe dans
+          /etc/gitlab/initial_root_password sur cette machine.
+
+          Une copie locale du depot est dans {{ travail }}/{{ projet }},
+          sur la branche {{ branche }}.
+          Elle n'a AUCUN .gitlab-ci.yml : l'ecrire est votre travail.
+        dest: "{{ travail }}/OU-TROUVER-LE-PROJET.txt"
+        mode: "0644"

@@ -1,0 +1,3 @@
+id: gl-01-premier-pipeline
+title: "Votre premier pipeline, au vert, sur votre propre GitLab"
+description: "Pousser le projet FastAPI sur le GitLab du lab, écrire la pipeline qui l'analyse, le teste et le construit, et obtenir le vert. La note porte sur la pipeline que le serveur a réellement jouée, lue dans l'API, jamais sur le fichier écrit."

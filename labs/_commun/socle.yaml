@@ -1,0 +1,373 @@
+---
+# Socle commun à tous les labs du catalogue : GitLab CE, son runner et le dépôt
+# fil rouge `pipeline-craft`, dans la VM gitlab-1.lab. Importé en tête de chaque
+# setup.yaml, parce que dsoxlab n'a aucun point d'accroche après le
+# provisionnement.
+#
+# IL EST IDEMPOTENT, et c'est la condition pour que le catalogue soit jouable :
+# l'installation de GitLab CE prend une dizaine de minutes, elle ne doit
+# arriver qu'une fois pour les dix-neuf labs. Chaque étape vérifie donc l'état
+# RÉEL (service actif, API qui répond, projet présent), jamais un fichier
+# témoin : un setup interrompu se rejoue sans rien casser, et un second lab
+# démarre en quelques secondes.
+#
+# La procédure reprend celle de `~/Projets/lab-gitlab/scripts/05-install-gitlab.sh`,
+# qui déploie déjà GitLab CE sur KVM et sert à valider les guides
+# d'installation du site. Rien n'est réinventé ici.
+#
+# UNE VALEUR RESTE À RELEVER AVANT LE PREMIER PASSAGE, et je ne l'invente pas :
+# `gitlab_version` doit porter la version exacte publiée par
+# packages.gitlab.com. Sans épinglage, deux apprenants qui jouent le lab à un
+# mois d'écart n'ont pas le même GitLab, et un lab noté sur l'état d'un
+# pipeline devient instable. Tant que la variable vaut `null`, la tâche
+# d'installation prend la dernière version disponible ET le signale.
+- name: Socle commun - GitLab CE, son runner et le dépôt pipeline-craft
+  hosts: lab_target
+  become: true
+  gather_facts: true
+  vars:
+    # À RELEVER à la source, puis à figer ici (format : 18.4.1-ce.0).
+    gitlab_version: null
+    gitlab_edition: gitlab-ce
+    # L'URL externe entre dans la configuration de GitLab : la changer après
+    # l'installation demande une reconfiguration complète.
+    gitlab_host: "gitlab-1.lab"
+    gitlab_url: "http://gitlab-1.lab"
+    # GitLab met plusieurs minutes à répondre au premier démarrage. Le lab
+    # d'installation du site attend jusqu'à 600 secondes : on reprend ce délai,
+    # mesuré, plutôt qu'une valeur optimiste.
+    attente_gitlab_s: 600
+    apprenant: "apprenant"
+    projet: "pipeline-craft"
+    runner_description: "runner-du-lab"
+    runner_tags: "docker,lab"
+
+  tasks:
+    - name: Dépendances de GitLab CE
+      ansible.builtin.apt:
+        name:
+          - curl
+          - ca-certificates
+          - tzdata
+          - perl
+          - openssh-server
+          - git
+          - jq
+          - python3
+        state: present
+        update_cache: true
+        cache_valid_time: 3600
+
+    # Postfix est installé par la procédure officielle et pose une question
+    # interactive : sans cette pré-réponse, l'installation se bloque sans
+    # message et le lab paraît figé.
+    - name: Pré-répondre à la configuration de Postfix
+      ansible.builtin.debconf:
+        name: postfix
+        question: postfix/main_mailer_type
+        value: "Local only"
+        vtype: select
+
+    - name: Postfix, pour que GitLab ait un transport local
+      ansible.builtin.apt:
+        name: postfix
+        state: present
+
+    # --- GitLab CE -----------------------------------------------------------
+    - name: GitLab CE est-il déjà installé ?
+      ansible.builtin.command: dpkg-query -W -f='${Version}' {{ gitlab_edition }}
+      register: gitlab_installe
+      changed_when: false
+      failed_when: false
+
+    - name: Dépôt de paquets GitLab
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -sS https://packages.gitlab.com/install/repositories/gitlab/{{ gitlab_edition }}/script.deb.sh | bash
+      args:
+        executable: /bin/bash
+        creates: /etc/apt/sources.list.d/gitlab_{{ gitlab_edition }}.list
+      when: gitlab_installe.rc != 0
+
+    - name: Avertir si la version n'est pas épinglée
+      ansible.builtin.debug:
+        msg: >-
+          `gitlab_version` vaut null : la DERNIÈRE version disponible va être
+          installée. Deux apprenants à un mois d'écart n'auront donc pas le
+          même GitLab. Relever la version et la figer dans ce socle.
+      when:
+        - gitlab_installe.rc != 0
+        - gitlab_version is none
+
+    - name: GitLab CE
+      ansible.builtin.apt:
+        name: "{{ gitlab_edition }}{{ '=' + gitlab_version if gitlab_version else '' }}"
+        state: present
+      environment:
+        EXTERNAL_URL: "{{ gitlab_url }}"
+      when: gitlab_installe.rc != 0
+
+    # `gitlab-ctl status` ne suffit pas : les services peuvent tourner alors
+    # que l'API répond encore 502. On attend la réponse, pas le processus.
+    - name: Attendre que l'API de GitLab réponde
+      ansible.builtin.uri:
+        url: "{{ gitlab_url }}/-/readiness"
+        status_code: [200]
+      register: pret
+      retries: "{{ (attente_gitlab_s / 10) | int }}"
+      delay: 10
+      until: pret.status == 200
+
+    # --- Jeton d'administration ---------------------------------------------
+    # L'ORDRE DE CES TROIS TÂCHES COMPTE, et la première version l'avait faux :
+    # la tâche du jeton porte `creates: /etc/dsoxlab/jeton-api`, et la tâche
+    # suivante écrivait dans un répertoire qui n'existait pas encore. Le
+    # répertoire se crée donc AVANT. Une erreur de ce genre ne se voit pas à la
+    # lecture du YAML, seulement au premier passage, c'est-à-dire dix minutes
+    # après le début de l'installation.
+    - name: Répertoire des secrets du lab
+      ansible.builtin.file:
+        path: /etc/dsoxlab
+        state: directory
+        mode: "0750"
+
+    # Créé par `gitlab-rails runner`, seul chemin qui ne demande ni mot de
+    # passe ni interface. Le jeton est écrit dans un fichier lisible par
+    # l'apprenant : c'est un lab, pas une production, et le dire vaut mieux que
+    # de le cacher à moitié.
+    # L'IDEMPOTENCE SE MESURE SUR L'ETAT REEL, PAS SUR UN FICHIER TEMOIN, et
+    # ce bloc est la correction d'un defaut mesure le 2026-10-21 qui a coute un
+    # passage entier.
+    #
+    # La premiere version portait `creates: /etc/dsoxlab/jeton-api` sur la
+    # tache de creation, et la tache suivante ecrivait
+    # `{{ jeton_cree.stdout }}` sous condition que ce stdout ne soit pas vide.
+    # Au SECOND passage, la tache a bien ete sautee... mais une tache sautee a
+    # QUAND MEME un `stdout`, qui contient le message « skipped, since
+    # /etc/dsoxlab/jeton-api exists ». La condition etait donc vraie, et le
+    # jeton valide a ete ECRASE PAR CE MESSAGE. Tous les appels suivants
+    # rendaient 401, et `no_log: true` masquait l'erreur derriere
+    # « {'censored': ...} ».
+    #
+    # Un jeton d'acces ne se relit pas : une fois le fichier perdu, il faut en
+    # creer un autre. On teste donc le jeton EXISTANT par un appel reel, et on
+    # n'en cree un nouveau que s'il ne repond pas.
+    - name: Le jeton conservé fonctionne-t-il encore ?
+      ansible.builtin.shell: |
+        set -o pipefail
+        test -s /etc/dsoxlab/jeton-api || exit 1
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        code=$(curl -sS -o /dev/null -w '%{http_code}' \
+          --header "PRIVATE-TOKEN: $JETON" "$URL/api/v4/user")
+        test "$code" = "200"
+      args:
+        executable: /bin/bash
+      environment:
+        URL: "{{ gitlab_url }}"
+      register: jeton_valide
+      changed_when: false
+      failed_when: false
+      no_log: true
+
+    # Révoquer l'ancien avant d'en créer un neuf : sans cela, chaque passage
+    # raté laisse un jeton actif de plus sur le compte root.
+    - name: Créer un jeton d'administration neuf
+      ansible.builtin.shell: |
+        set -o pipefail
+        gitlab-rails runner "
+          u = User.find_by_username('root')
+          u.personal_access_tokens.active.where(name: 'dsoxlab').each { |t| t.revoke! }
+          t = u.personal_access_tokens.create!(
+            scopes: ['api', 'write_repository'],
+            name: 'dsoxlab',
+            expires_at: 90.days.from_now)
+          puts t.token
+        " 2>/dev/null | tail -1
+      args:
+        executable: /bin/bash
+      register: jeton_neuf
+      when: jeton_valide.rc != 0
+      changed_when: true
+      no_log: true
+
+    # La condition porte sur `is changed`, pas sur le contenu de `stdout` :
+    # c'est ce qui distingue une tâche qui a tourné d'une tâche sautée, et
+    # c'est précisément ce que la première version confondait.
+    - name: Conserver le jeton pour les tests et pour l'apprenant
+      ansible.builtin.copy:
+        content: "{{ jeton_neuf.stdout | trim }}\n"
+        dest: /etc/dsoxlab/jeton-api
+        mode: "0640"
+      when:
+        - jeton_neuf is changed
+        - jeton_neuf.stdout is defined
+        - jeton_neuf.stdout | trim | length >= 20
+      no_log: true
+
+    # Un jeton de GitLab fait une vingtaine de caracteres et ne contient aucune
+    # espace. Si le fichier porte autre chose, mieux vaut s'arreter ici que de
+    # laisser dix-sept taches echouer en 401 sans dire pourquoi.
+    #
+    # PIEGE PAYE A L'ECRITURE : la premiere version mesurait la longueur avec
+    # `${#JETON}`. Ansible a REFUSE DE CHARGER le playbook entier, sur
+    # « unbalanced jinja2 block or quotes », parce que Jinja lit `{#` comme le
+    # debut d'un commentaire et cherche le `#}` correspondant. Dans un
+    # playbook, la longueur d'une variable shell se mesure donc autrement.
+    - name: Le jeton conservé a bien la forme d'un jeton
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        LONGUEUR=$(printf '%s' "$JETON" | wc -c)
+        if [ "$LONGUEUR" -lt 20 ]; then
+          echo "jeton trop court : $LONGUEUR caracteres"
+          exit 1
+        fi
+        if printf '%s' "$JETON" | grep -q '[[:space:]]'; then
+          echo "le fichier porte un message, pas un jeton"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    # --- Auto DevOps : à éteindre, et ce n'est pas un détail -----------------
+    #
+    # MESURÉ AU PREMIER PASSAGE DU LAB, le 2026-10-21. Une instance GitLab CE
+    # fraîche a `auto_devops_enabled: true` **au niveau de l'INSTANCE**. Quand
+    # un dépôt n'a pas de `.gitlab-ci.yml`, GitLab lance donc son propre
+    # pipeline Auto DevOps : au premier push du dépôt fil rouge, le projet
+    # avait déjà un pipeline avec `code_quality`, `semgrep-sast`,
+    # `container_scanning`, `build` et `test`, alors que le fichier renvoyait
+    # un HTTP 404.
+    #
+    # Deux conséquences, et la seconde est la pire :
+    #   - le scénario du lab devient faux, puisqu'il annonce un onglet
+    #     Pipelines vide ;
+    #   - un test PASSE POUR UNE MAUVAISE RAISON. `test_les_etapes_sont_visibles`
+    #     était vert grâce aux stages d'Auto DevOps, pas grâce au travail de
+    #     l'apprenant. Un test qui passe sans mesurer ce qu'il prétend mesurer
+    #     est pire qu'un test qui échoue.
+    #
+    # Le réglage du PROJET ne suffit pas : il valait déjà `false` pendant que
+    # l'instance imposait `true`.
+    - name: Éteindre Auto DevOps sur l'instance
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        curl -sS --fail --request PUT \
+          --header "PRIVATE-TOKEN: $JETON" \
+          --data "auto_devops_enabled=false" \
+          "$URL/api/v4/application/settings" >/dev/null
+      args:
+        executable: /bin/bash
+      environment:
+        URL: "{{ gitlab_url }}"
+      changed_when: true
+      no_log: true
+
+    # Le reglage est pose, mais GitLab garde ses `application_settings` en
+    # CACHE par processus pendant une minute. Mesure le 2026-10-21 : un push
+    # fait quelques secondes apres l'extinction declenche encore un pipeline
+    # Auto DevOps, alors que l'API rend deja `false` sur l'instance comme sur
+    # le projet ; le meme push fait plus tard n'en declenche aucun (six releves
+    # a trois secondes d'intervalle, zero pipeline neuf).
+    #
+    # On vide donc le cache au lieu d'attendre la minute. L'appel coute une
+    # vingtaine de secondes, une fois par passage du socle, et il supprime la
+    # cause ; le setup du lab garde par ailleurs son garde-fou.
+    - name: Vider le cache des réglages, pour que l'extinction prenne tout de suite
+      ansible.builtin.command:
+        argv:
+          - gitlab-rails
+          - runner
+          - Gitlab::CurrentSettings.expire_current_application_settings
+      changed_when: true
+
+    # --- Runner --------------------------------------------------------------
+    - name: Dépôt de paquets du runner
+      ansible.builtin.shell: |
+        set -o pipefail
+        curl -sS https://packages.gitlab.com/install/repositories/runner/gitlab-runner/script.deb.sh | bash
+      args:
+        executable: /bin/bash
+        creates: /etc/apt/sources.list.d/runner_gitlab-runner.list
+
+    - name: Le paquet gitlab-runner
+      ansible.builtin.apt:
+        name: gitlab-runner
+        state: present
+
+    - name: Docker, pour l'exécuteur du runner
+      ansible.builtin.apt:
+        name: [docker.io]
+        state: present
+
+    - name: Le runner est-il déjà enregistré ?
+      ansible.builtin.command: grep -q 'token' /etc/gitlab-runner/config.toml
+      register: runner_enregistre
+      changed_when: false
+      failed_when: false
+
+    # Un jeton d'enregistrement par projet, obtenu par l'API : les jetons
+    # d'enregistrement partagés sont dépréciés côté GitLab.
+    - name: Enregistrer le runner sur l'instance
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        REP=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          --data "runner_type=instance_type" \
+          --data "description={{ runner_description }}" \
+          --data "tag_list={{ runner_tags }}" \
+          --data "run_untagged=true" \
+          "{{ gitlab_url }}/api/v4/user/runners")
+        AUTH=$(echo "$REP" | jq -r '.token')
+        test -n "$AUTH" -a "$AUTH" != "null"
+        gitlab-runner register --non-interactive \
+          --url "{{ gitlab_url }}" \
+          --token "$AUTH" \
+          --executor docker \
+          --docker-image "alpine:3.22" \
+          --docker-privileged \
+          --docker-volumes "/certs/client" \
+          --docker-volumes "/cache" \
+          --description "{{ runner_description }}"
+      args:
+        executable: /bin/bash
+      when: runner_enregistre.rc != 0
+      # La tache N'EST idempotente que par son `when` : elle ne tourne que si
+      # aucun jeton n'est encore dans config.toml. Quand elle tourne, elle
+      # change bien l'etat, d'ou `changed_when: true` plutot qu'un faux
+      # `changed_when: false` qui mentirait au rapport d'Ansible.
+      changed_when: true
+      no_log: true
+
+    # LE VOLUME `/certs/client` N'EST PAS UN DETAIL, et il manquait. Mesure le
+    # 2026-10-21 sur la solution du lab 01 : `ruff-lint` et `pytest` passaient,
+    # `docker-build` echouait sur
+    #
+    #     ERROR: open /certs/client/ca.pem: no such file or directory
+    #
+    # Construire une image dans un pipeline demande un demon Docker, fourni
+    # par le service `docker:dind`. En TLS (`DOCKER_TLS_CERTDIR: "/certs"`,
+    # qui est ce que fait le depot fil rouge), le service genere ses
+    # certificats dans `/certs` et le client du job doit les lire dans
+    # `/certs/client`. Les deux conteneurs ne les partagent que si le RUNNER
+    # monte ce volume : c'est la configuration que GitLab documente, et
+    # `gitlab-runner register` ne la pose pas tout seul.
+    #
+    # Cette tache rattrape un runner deja enregistre, ce que le `when` de la
+    # tache precedente empeche de refaire. Elle ecrase la ligne `volumes` :
+    # le socle est proprietaire de cette configuration.
+    - name: Le runner partage les certificats du démon Docker
+      ansible.builtin.lineinfile:
+        path: /etc/gitlab-runner/config.toml
+        regexp: '^\s*volumes = '
+        line: '    volumes = ["/certs/client", "/cache"]'
+        backrefs: false
+      register: volumes_runner
+
+    - name: Le service du runner tourne
+      ansible.builtin.systemd_service:
+        name: gitlab-runner
+        state: "{{ 'restarted' if volumes_runner is changed else 'started' }}"
+        enabled: true

@@ -1,0 +1,17 @@
+# Surcharge française du catalogue. Elle ne porte QUE `repo.title`,
+# `repo.description`, et les `title` / `description` des sections, appariés
+# par `id` et non par position.
+#
+# La langue par défaut de l'outil est l'anglais : `meta.yml` porte donc
+# l'anglais, et ce fichier le français. Sans lui, une session anglaise lit les
+# titres de sections tels qu'ils sont écrits dans `meta.yml`.
+
+repo:
+  title: gitlab-ci-dsoxlab-training
+  description: |
+    À remplir : ce que ce catalogue apprend, et à qui.
+
+sections:
+  - id: premiers-pas
+    title: Premiers pas
+    description: À remplir.
