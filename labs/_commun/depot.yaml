@@ -103,16 +103,16 @@
 #      la mesure. Les explications montent donc ici, et
 #      `scripts/check-playbooks.py` tranche en chargeant chaque playbook.
 #
-# Ce que fait le script : il extrait du bundle la branche de depart, la renomme
-# en `main` pour que l'apprenant travaille sur la branche par defaut, pousse
-# dans la forge avec le jeton interpole par le shell DE LA VM (donc hors de la
-# liste des processus et de toute trace d'echec), puis repointe `origin` vers
-# l'URL propre. L'apprenant retrouve un depot normal, qui lui demandera ses
-# identifiants au prochain push.
-- name: Poser la branche de depart dans la forge
+# Ce que font les trois taches qui suivent : extraire du bundle la branche de
+# depart et la renommer `main`, pour que l'apprenant travaille sur la branche
+# par defaut ; adapter au besoin le pipeline a la forge locale ; puis pousser.
+#
+# LE PUSH EST SEPARE DU CLONE pour que l'adaptation tienne dans le MEME commit.
+# Pousser d'abord, puis adapter, ferait naitre un premier pipeline voue a
+# echouer, que l'apprenant trouverait dans son onglet sans comprendre.
+- name: Cloner la branche de depart sur la machine
   ansible.builtin.shell: |
     set -o pipefail
-    JETON=$(cat /etc/dsoxlab/jeton-api)
     rm -rf "$TRAVAIL/$PROJET"
     git clone -q --branch "$SOURCE" "$BUNDLE" "$TRAVAIL/$PROJET"
     cd "$TRAVAIL/$PROJET"
@@ -120,9 +120,6 @@
     git branch -M main
     git config user.email "apprenant@dsoxlab.local"
     git config user.name "Apprenant"
-    git push -q "http://oauth2:$JETON@gitlab-1.lab/root/$PROJET.git" main
-    git remote add origin "$URL/root/$PROJET.git"
-    git branch --set-upstream-to=origin/main main 2>/dev/null || true
   args:
     executable: /bin/bash
   environment:
@@ -130,6 +127,60 @@
     PROJET: "{{ projet }}"
     SOURCE: "{{ branche_source }}"
     BUNDLE: "{{ bundle_cible }}"
+  when: not deja_git.stat.exists
+  changed_when: true
+
+# LE REGISTRE DU LAB EST EN HTTP, ET UN DEMON DOCKER LE REFUSE PAR DEFAUT.
+#
+# Mesure le 2026-10-21 sur `starter/lab-05`, dont le job de construction pousse
+# l'image : une fois le registre active, le job echouait sur
+#
+#     Error response from daemon: Get "https://gitlab-1.lab:5050/v2/":
+#     http: server gave HTTP response to HTTPS client
+#
+# La parade, eprouvee le meme jour (pipeline passe au vert, image presente dans
+# `root/pipeline-craft`), est de passer `--insecure-registry` au service dind,
+# ce qui impose la forme LONGUE du service. Sur gitlab.com, en HTTPS, la
+# question ne se pose pas : c'est une adaptation a la forge locale, et les
+# scenarios des labs concernes le disent.
+#
+# Idempotent par construction : la regexp ne reconnait que la forme courte, et
+# un fichier deja converti ne correspond plus.
+- name: Dire au service Docker que le registre du lab est en clair
+  ansible.builtin.replace:
+    path: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+    regexp: '^(\s*)-\s*(docker:[\w.@:-]*dind[\w.@:-]*)\s*$'
+    replace: '\1- name: \2\n\1  alias: docker\n\1  command: ["--insecure-registry=gitlab-1.lab:5050"]'
+  when:
+    - adapter_registre_local | default(false) | bool
+    - not deja_git.stat.exists
+
+# Le jeton est interpole par le shell DE LA VM : il reste hors de la liste des
+# processus, hors du playbook et hors de toute trace d'echec. Apres le push,
+# `origin` repointe vers l'URL propre, et GitLab demandera ses identifiants a
+# l'apprenant au prochain push, ce qui est le comportement normal.
+- name: Pousser la branche de depart dans la forge
+  ansible.builtin.shell: |
+    set -o pipefail
+    cd "$TRAVAIL/$PROJET"
+    JETON=$(cat /etc/dsoxlab/jeton-api)
+    git add -A
+    git diff --cached --quiet || git commit -q -m "chore: adapter le pipeline a la forge du lab"
+    # `--force` EST UNE CEINTURE, et elle vient d'un defaut mesure le
+    # 2026-10-21 : un nettoyage qui echoue laisse dans la forge le projet du
+    # lab precedent, DEJA CORRIGE, et le push normal serait alors refuse pour
+    # historiques divergents. Les tests mesuraient ce depot-la, et deux labs
+    # ont rendu 67 et 100 sur leur etat de depart. La tache ne tourne que
+    # lorsque la copie de travail est absente, donc jamais sur le travail en
+    # cours de l'apprenant : ce qui est ecrase est l'etat d'un lab termine.
+    git push -q --force "http://oauth2:$JETON@gitlab-1.lab/root/$PROJET.git" main
+    git remote add origin "$URL/root/$PROJET.git" 2>/dev/null || true
+    git branch --set-upstream-to=origin/main main 2>/dev/null || true
+  args:
+    executable: /bin/bash
+  environment:
+    TRAVAIL: "{{ travail }}"
+    PROJET: "{{ projet }}"
     URL: "{{ gitlab_url }}"
   when: not deja_git.stat.exists
   changed_when: true

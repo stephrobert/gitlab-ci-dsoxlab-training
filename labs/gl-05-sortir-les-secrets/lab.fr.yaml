@@ -1,0 +1,3 @@
+id: gl-05-sortir-les-secrets
+title: "Faire sortir le secret du dépôt"
+description: "Un mot de passe de base de données traîne en clair à deux endroits, et un job l'affiche dans son journal. Le faire sortir du dépôt, le déclarer en variable CI/CD masquée et protégée, et prouver qu'il ne fuit plus. La note porte sur le dépôt, les variables et les journaux des jobs."

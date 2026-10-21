@@ -1,22 +1,30 @@
 # Lab gl-04-artifacts-et-cache. Les champs marqués REQUIS sont exigés par le validator : sans eux,
 # le lab est refusé, ou pire, disparaît du catalogue sans un mot.
-id: gl-04-artifacts-et-cache                      # REQUIS
-title: "À remplir"            # REQUIS
-level: l1                     # REQUIS
-description: "À remplir : ce que l'apprenant saura faire à la fin."
+id: gl-04-artifacts-et-cache                 # REQUIS
+title: "Cache the dependencies, keep the test report"   # REQUIS
+level: c1                     # REQUIS
+description: "The pipeline is green but wasteful: every job downloads its dependencies again, and the test results vanish with the job. Add a cache keyed on the dependency file, and publish the JUnit report so GitLab reads it. Graded on the job logs and the pipeline test report."
 skills:                       # REQUIS, non vide
-  - a-remplir
+  - gitlab-ci
+  - cache
+  - artifacts
+  - reports
 distros:                      # REQUIS, non vide
-  - any
-doc_url: https://example.org/a-remplir   # REQUIS, http(s)
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-04-artifacts-et-cache/   # REQUIS, http(s)
 lab_type: lab
-estimated_time: 30m
+estimated_time: 40m
 runtime:
   type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
   targets:                    # REQUIS pour vm, non vide
-    - name: cible
-      host: hote.lab          # doit exister dans meta.yml: infra.hosts[]
-  default: cible
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
 validation:
   functional: true
   persistence_after_reboot: false

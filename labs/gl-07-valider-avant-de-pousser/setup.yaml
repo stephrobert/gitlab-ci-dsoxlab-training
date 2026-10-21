@@ -1,0 +1,42 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline que GitLab REFUSE, et qui porte
+# en plus un défaut que le refus masque.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-07-valider-avant-de-pousser
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-07"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-07` porte trois défauts, et leur ordre d'apparition est tout
+    # le sujet du lab :
+    #
+    #   - un job déclare `stage: tests`, absent de la liste `stages:`. GitLab
+    #     REFUSE alors toute la configuration : aucun job ne tourne ;
+    #   - ce même job déclare `needs: [build-image]`, un job qui n'existe pas.
+    #     Ce second défaut est invisible tant que le premier est là ;
+    #   - une règle `changes:` écrit `app/***`, avec trois étoiles. Celui-là,
+    #     GitLab l'accepte sans broncher : il ne se voit ni au refus, ni à
+    #     l'exécution, seulement en relisant.
+    #
+    # `adapter_registre_local` dit au service Docker que le registre du lab est
+    # en clair : ce starter pousse l'image, et un démon refuse par défaut un
+    # registre qui n'est pas en TLS.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-07"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true

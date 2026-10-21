@@ -1,5 +1,3 @@
-# Surcharge française du lab gl-04-artifacts-et-cache. Elle ne porte QUE `title` et
-# `description` : tout autre champ y est ignoré en silence, parce que le
-# contrat ne se traduit pas.
-title: "À remplir"
-description: "À remplir : ce que l'apprenant saura faire à la fin."
+id: gl-04-artifacts-et-cache
+title: "Mettre les dépendances en cache, garder le rapport de tests"
+description: "Le pipeline est vert mais gaspilleur : chaque job retélécharge ses dépendances, et les résultats de tests disparaissent avec le job. Ajouter un cache dont la clé suit le fichier de dépendances, et publier le rapport JUnit pour que GitLab le lise. La note porte sur les journaux et le rapport de tests du pipeline."

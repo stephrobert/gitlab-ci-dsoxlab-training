@@ -3,7 +3,8 @@
 LE PIPELINE DE DEPART EST DEJA VERT, ce qui change la nature de ce lab : il n'y
 a rien a reparer, il y a du gaspillage a supprimer et un resultat a rendre
 exploitable. Les tests notent donc deux choses que l'etat de depart ne porte
-pas.
+pas, et AUCUN d'eux ne se contente de verifier le vert : un tel test passerait
+avant tout travail, et ne mesurerait que l'hypothese du setup.
 
 PREMIEREMENT, LE RAPPORT DE TESTS. Un artefact depose dans le pipeline ne
 suffit pas : GitLab doit l'avoir INTERPRETE, ce qui n'arrive qu'avec
@@ -100,21 +101,34 @@ def traces_du_dernier(forge, contexte):
     return "\n".join(morceaux)
 
 
-def test_le_pipeline_est_vert(contexte):
-    statut = contexte["pipeline"].get("status")
-    assert statut == "success", message(
-        en=f"The latest pipeline on the default branch is '{statut}', not 'success'.",
-        fr=f"Le dernier pipeline de la branche par défaut est « {statut} », pas « success ».",
-    )
-
-
 def test_les_resultats_de_tests_sont_lisibles_dans_gitlab(forge, contexte):
     """GitLab doit avoir INTERPRETE le rapport, pas seulement garde un fichier.
 
     `paths:` rend le fichier telechargeable ; seul `reports: junit:` remplit le
     rapport de tests du pipeline. C'est la difference que ce test mesure, et
     c'est tout le sujet d'un artefact de rapport.
+
+    IL N'Y A PAS DE TEST « LE PIPELINE EST VERT » DANS CE LAB, et c'est une
+    correction, pas un oubli. Ce lab part d'un pipeline DEJA VERT : un tel test
+    passait donc avant tout travail, ce que `valider-labs.py` a refuse a juste
+    titre (« un test vert sur l'etat de depart n'est pas un test, c'est une
+    hypothese du setup »). L'exigence du vert est donc portee ici, par le test
+    qui mesure quelque chose que l'etat de depart ne porte pas : on ne gagne
+    pas un rapport lisible en cassant le pipeline.
     """
+    statut = contexte["pipeline"].get("status")
+    assert statut == "success", message(
+        en=(
+            f"The latest pipeline on the default branch is '{statut}', not "
+            "'success'. It was green before your changes: adding a cache and a "
+            "report must not break it."
+        ),
+        fr=(
+            f"Le dernier pipeline de la branche par défaut est « {statut} », "
+            "pas « success ». Il était vert avant vos modifications : ajouter "
+            "un cache et un rapport ne doit pas le casser."
+        ),
+    )
     rapport = api(
         forge,
         f"/projects/{contexte['projet']['id']}/pipelines/{contexte['pipeline']['id']}/test_report",

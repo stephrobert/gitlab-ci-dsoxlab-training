@@ -60,6 +60,9 @@ sections:
       - gl-02-lire-un-echec
       - gl-03-images-et-runners
       - gl-04-artifacts-et-cache
+      - gl-05-sortir-les-secrets
+      - gl-06-controler-execution
+      - gl-07-valider-avant-de-pousser
 
   - id: livrer
     title: "Deliver"

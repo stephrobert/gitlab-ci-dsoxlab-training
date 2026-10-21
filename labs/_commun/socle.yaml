@@ -118,6 +118,67 @@
       delay: 10
       until: pret.status == 200
 
+    # --- Container Registry -------------------------------------------------
+    #
+    # POURQUOI IL EST ACTIVE ICI, ET PAS DANS LE LAB QUI EN A BESOIN. Les
+    # branches `starter/lab-05` et suivantes du depot fil rouge poussent
+    # l'image dans le Container Registry. Sur une instance GitLab CE fraiche,
+    # ce registre n'est NI configure NI lance : mesure le 2026-10-21,
+    # `container_registry_enabled` rend `null` sur un projet, aucune ligne
+    # `registry_external_url` dans `gitlab.rb`, et `gitlab-ctl status registry`
+    # ne connait pas le service.
+    #
+    # Sans lui, le job de construction de ces labs echoue pour une raison
+    # ETRANGERE A LEUR SUJET, et un apprenant qui travaille sur les secrets
+    # cherche une faute qu'il n'a pas commise.
+    #
+    # Le registre ecoute en HTTP sur 5050, puisque la forge du lab est en HTTP.
+    # Consequence a connaitre, et que les labs concernes expliquent : le demon
+    # Docker refuse par defaut un registre en clair, et le job qui pousse doit
+    # donc le lui dire. Sur gitlab.com, en HTTPS, la question ne se pose pas.
+    - name: Le registre est-il déjà configuré ?
+      ansible.builtin.command: grep -q '^registry_external_url' /etc/gitlab/gitlab.rb
+      register: registre_configure
+      changed_when: false
+      failed_when: false
+
+    - name: Configurer le Container Registry en HTTP
+      ansible.builtin.blockinfile:
+        path: /etc/gitlab/gitlab.rb
+        marker: "# {mark} registre du lab (dsoxlab)"
+        block: |
+          registry_external_url 'http://gitlab-1.lab:5050'
+          registry_nginx['listen_port'] = 5050
+          registry_nginx['listen_https'] = false
+      when: registre_configure.rc != 0
+      register: registre_pose
+
+    # `reconfigure` prend plusieurs minutes et redemarre des services : il ne
+    # tourne QUE si la configuration vient de changer.
+    #
+    # `noqa: no-handler` est DELIBERE, et ce n'est pas un contournement de
+    # confort. ansible-lint propose d'en faire un handler ; or un handler
+    # tourne a la FIN du play, alors que tout ce qui suit dans ce socle (le
+    # jeton d'administration, l'enregistrement du runner) a besoin d'une
+    # instance deja reconfiguree et d'un registre qui repond. En handler, la
+    # reconfiguration arriverait apres ses propres dependants.
+    - name: Appliquer la configuration de GitLab  # noqa: no-handler
+      ansible.builtin.command: gitlab-ctl reconfigure
+      when: registre_pose is changed
+      changed_when: true
+      # Mesure sur cette VM : entre deux et quatre minutes au premier passage.
+      async: 900
+      poll: 15
+
+    - name: Attendre que le registre réponde
+      ansible.builtin.uri:
+        url: "http://gitlab-1.lab:5050/v2/"
+        status_code: [200, 401]
+      register: registre_pret
+      retries: 30
+      delay: 10
+      until: registre_pret.status in [200, 401]
+
     # --- Jeton d'administration ---------------------------------------------
     # L'ORDRE DE CES TROIS TÂCHES COMPTE, et la première version l'avait faux :
     # la tâche du jeton porte `creates: /etc/dsoxlab/jeton-api`, et la tâche

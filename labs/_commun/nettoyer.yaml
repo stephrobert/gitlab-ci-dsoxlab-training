@@ -1,0 +1,177 @@
+---
+# Le nettoyage commun : les images du registre, puis le projet du lab, puis la
+# copie de travail.
+#
+# IL NE DESINSTALLE PAS GITLAB, et c'est delibere : l'installation prend une
+# dizaine de minutes, et le socle est idempotent. Nettoyer l'instance entiere
+# ferait payer ces minutes a chaque reprise, pour un lab qui dure moins d'une
+# heure. Ce qui se nettoie, c'est ce que l'apprenant a produit.
+#
+# Chaque `cleanup.yaml` l'inclut avec son repertoire de travail :
+#
+#     - name: Nettoyer le lab
+#       ansible.builtin.include_tasks: ../_commun/nettoyer.yaml
+#       vars:
+#         travail: "/opt/dsoxlab/gl-02"
+
+# LES IMAGES DU REGISTRE PARTENT D'ABORD, ET CET ORDRE N'EST PAS UN CONFORT.
+#
+# Mesure le 2026-10-22, apres l'activation du Container Registry : le premier
+# `DELETE /projects/:id` rend HTTP 400 et le dit clairement,
+#
+#     Cannot rename or delete project because it contains container registry
+#     tags. Delete all container registry tags first.
+#
+# GitLab REFUSE donc de supprimer un projet qui porte des images. Comme les
+# labs 05 et suivants en poussent une, le nettoyage echouait, le projet
+# survivait AVEC L'ETAT CORRIGE du lab precedent, et les tests du lab suivant
+# mesuraient ce depot-la : deux labs ont ainsi rendu 67 et 100 sur leur etat de
+# depart, sans qu'aucun test soit en cause.
+#
+# CE SONT LES TAGS QU'IL FAUT RETIRER, pas les depots, et la nuance a coute un
+# essai de plus. `DELETE /registry/repositories/:id` rend bien HTTP 202, mais
+# la suppression d'un depot est ASYNCHRONE : soixante secondes plus tard, le
+# depot et ses tags etaient toujours la, et le projet toujours irremovible.
+# `DELETE /registry/repositories/:id/tags/:nom` rend 200 et retire le tag
+# immediatement ; une fois la liste vide, le projet se supprime (202). Le
+# message de GitLab le disait d'ailleurs : « contains container registry
+# tags ».
+#
+# Le defaut a mis deux diagnostics a sortir parce que la version precedente
+# jetait les reponses de l'API (`>/dev/null`) : elle bouclait quinze fois sur
+# un refus qu'elle n'affichait pas. Les corps sont donc lus ici, et montres
+# quand ils expliquent un echec.
+- name: Retirer les images du registre du projet
+  ansible.builtin.shell: |
+    set -o pipefail
+    test -s /etc/dsoxlab/jeton-api || exit 0
+    JETON=$(cat /etc/dsoxlab/jeton-api)
+    API="$URL/api/v4"
+    H="PRIVATE-TOKEN: $JETON"
+
+    ID=$(curl -sS --header "$H" "$API/projects?search=$PROJET" \
+      | jq -r '.[0].id // empty')
+    if [ -z "$ID" ]; then
+      echo "aucun projet, donc aucune image a retirer"
+      exit 0
+    fi
+
+    RETIRES=0
+    for DEPOT in $(curl -sS --header "$H" \
+      "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+      for TAG in $(curl -sS --header "$H" \
+        "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+        | jq -r '.[]?.name'); do
+        CODE=$(curl -sS -o /tmp/tag.json -w '%{http_code}' --header "$H" \
+          --request DELETE \
+          "$API/projects/$ID/registry/repositories/$DEPOT/tags/$TAG")
+        if [ "$CODE" = "200" ] || [ "$CODE" = "202" ] || [ "$CODE" = "204" ]; then
+          RETIRES=$((RETIRES + 1))
+        else
+          echo "  tag $TAG du depot $DEPOT : HTTP $CODE"
+          echo "    reponse : $(head -c 250 /tmp/tag.json)"
+        fi
+      done
+    done
+    echo "$RETIRES tag(s) retire(s) du registre"
+
+    # On verifie que plus aucun tag ne subsiste : GitLab en fait la condition
+    # pour accepter la suppression du projet.
+    RESTE=0
+    for DEPOT in $(curl -sS --header "$H" \
+      "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+      N=$(curl -sS --header "$H" \
+        "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+        | jq '[.[]?] | length')
+      RESTE=$((RESTE + N))
+    done
+    if [ "$RESTE" -ne 0 ]; then
+      echo "il reste $RESTE tag(s) : la suppression du projet sera refusee"
+      exit 1
+    fi
+  args:
+    executable: /bin/bash
+  environment:
+    PROJET: "{{ projet | default('pipeline-craft') }}"
+    URL: "{{ gitlab_url | default('http://gitlab-1.lab') }}"
+  changed_when: true
+
+# SUPPRIMER UN PROJET GITLAB NE LE SUPPRIME PAS, et c'est le second piege de
+# cette tache.
+#
+# `deletion_adjourned_period` vaut 30 jours sur cette instance, et le reglage
+# n'est pas modifiable en CE (le PUT a 0 rend 400). Un `DELETE /projects/:id`
+# met donc le projet EN RETENTION : GitLab le renomme en
+# `pipeline-craft-deletion_scheduled-N` et le passe en lecture seule. Le setup
+# suivant le retrouvait, croyait le projet vivant, et poussait dedans : 403 sur
+# tout, avec trois symptomes pour une seule cause.
+#
+# Et le DELETE definitif exige le `full_path` du nom RENOMME, que GitLab ne
+# pose pas instantanement : une version qui relisait le chemin juste apres le
+# premier appel obtenait encore l'ancien, et ne supprimait rien.
+#
+# D'ou cette boucle, qui ne conclut que sur un HTTP 404 : a chaque tour elle
+# relit l'etat reel, marque le projet s'il ne l'est pas, et demande sa
+# suppression definitive avec le chemin du moment.
+- name: Supprimer le projet de la forge, definitivement
+  ansible.builtin.shell: |
+    set -o pipefail
+    test -s /etc/dsoxlab/jeton-api || exit 0
+    JETON=$(cat /etc/dsoxlab/jeton-api)
+    API="$URL/api/v4"
+    H="PRIVATE-TOKEN: $JETON"
+
+    ID=$(curl -sS --header "$H" "$API/projects?search=$PROJET" \
+      | jq -r '.[0].id // empty')
+    if [ -z "$ID" ]; then
+      echo "aucun projet a supprimer"
+      exit 0
+    fi
+
+    DERNIERE=""
+    for ESSAI in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+      CODE=$(curl -sS -o /tmp/projet.json -w '%{http_code}' --header "$H" \
+        "$API/projects/$ID")
+      if [ "$CODE" = "404" ]; then
+        echo "projet $ID supprime (essai $ESSAI)"
+        exit 0
+      fi
+      MARQUE=$(jq -r '.marked_for_deletion_on // empty' /tmp/projet.json)
+      CHEMIN=$(jq -r '.path_with_namespace // empty' /tmp/projet.json)
+      if [ -z "$MARQUE" ]; then
+        # Premier appel : il marque le projet et le renomme.
+        RC=$(curl -sS -o /tmp/del.json -w '%{http_code}' --header "$H" \
+          --request DELETE "$API/projects/$ID")
+      else
+        # Le projet est marque : son chemin porte desormais le suffixe de
+        # retention, et le DELETE definitif exige CE chemin, pas le nom
+        # initial.
+        RC=$(curl -sS -o /tmp/del.json -w '%{http_code}' --header "$H" \
+          --request DELETE \
+          --data-urlencode "permanently_remove=true" \
+          --data-urlencode "full_path=$CHEMIN" \
+          "$API/projects/$ID")
+      fi
+      DERNIERE="HTTP $RC : $(head -c 250 /tmp/del.json)"
+      sleep 4
+    done
+
+    echo "le projet $ID repond encore apres quinze essais"
+    echo "  dernier chemin  : $CHEMIN"
+    echo "  derniere reponse: $DERNIERE"
+    exit 1
+  args:
+    executable: /bin/bash
+  environment:
+    PROJET: "{{ projet | default('pipeline-craft') }}"
+    URL: "{{ gitlab_url | default('http://gitlab-1.lab') }}"
+  changed_when: true
+
+# La copie de travail part EN DERNIER, et jamais avant la suppression du
+# projet. Un nettoyage qui retirerait la copie puis echouerait sur la forge
+# laisserait le setup suivant croire qu'il doit tout reposer, alors que le
+# projet distant porte encore l'etat d'avant.
+- name: Retirer la copie locale du depot
+  ansible.builtin.file:
+    path: "{{ travail }}"
+    state: absent

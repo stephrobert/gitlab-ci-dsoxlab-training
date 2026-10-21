@@ -1,0 +1,30 @@
+# Lab gl-06-controler-execution. Les champs marqués REQUIS sont exigés par le validator : sans eux,
+# le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-06-controler-execution                # REQUIS
+title: "Decide when the pipeline runs, and who deploys"   # REQUIS
+level: c1                     # REQUIS
+description: "Every job runs on every push, on every branch, and nothing is ever deployed. Decide when a pipeline is born, which jobs join it, and which deployment waits for a human. Graded on the pipeline left on the forge."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - rules
+  - workflow
+  - deploy
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-06-controler-execution/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 40m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

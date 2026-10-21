@@ -2,102 +2,18 @@
 # Joué par `dsoxlab clean` : il remet la situation du scénario, pour que le lab
 # se rejoue à l'identique.
 #
-# IL NE DÉSINSTALLE PAS GITLAB, et c'est délibéré : l'installation prend une
-# dizaine de minutes, et le socle est idempotent. Nettoyer l'instance entière
-# ferait payer ces dix minutes à chaque reprise, pour un lab qui dure
-# quarante-cinq minutes. Ce qui se nettoie, c'est ce que l'apprenant a produit :
-# le projet et ses pipelines.
+# Tout le travail vit dans `_commun/nettoyer.yaml`, que les labs partagent :
+# supprimer un projet GitLab demande plus qu'un appel, et le découvrir sept
+# fois serait sept fois le même diagnostic.
 - name: Nettoyer le lab gl-04-artifacts-et-cache
   hosts: lab_target
   become: true
   gather_facts: false
   vars:
     projet: "pipeline-craft"
-    chemin: "root/pipeline-craft"
-    url: "http://gitlab-1.lab"
+    gitlab_url: "http://gitlab-1.lab"
     travail: "/opt/dsoxlab/gl-04"
 
   tasks:
-    # SUPPRIMER UN PROJET GITLAB NE LE SUPPRIME PAS, et c'est le defaut le plus
-    # couteux de la journee du 2026-10-21. Mesure sur cette instance :
-    # `deletion_adjourned_period` vaut **30 jours**, et le reglage n'est pas
-    # modifiable en CE (le PUT a 0 rend 400). Un `DELETE /projects/:id` met donc
-    # le projet en RETENTION : GitLab le renomme en
-    # `pipeline-craft-deletion_scheduled-1` et le passe EN LECTURE SEULE.
-    #
-    # Ce que cela produisait, en cascade :
-    #   - l'ancienne attente cherchait « pipeline-craft » et trouvait toujours
-    #     le projet renomme, puisque la recherche est approchante : elle
-    #     attendait soixante secondes pour rien, puis son echec etait avale par
-    #     un `failed_when: false` ;
-    #   - le setup suivant trouvait ce fantome, croyait le projet present,
-    #     sautait sa creation, et poussait dans un projet en lecture seule ;
-    #   - tout rendait alors 403 : le push du code, le push de la solution, et
-    #     la suppression du pipeline Auto DevOps, qui devenait indestructible.
-    #
-    # La parade mesuree : un premier DELETE qui marque, puis un second avec
-    # `permanently_remove=true` et le `full_path` DU NOM RENOMME. Reponse 202,
-    # et le projet a disparu en moins de quatre secondes.
-    - name: Supprimer le projet de la forge, definitivement
-      ansible.builtin.shell: |
-        set -o pipefail
-        test -s /etc/dsoxlab/jeton-api || exit 0
-        JETON=$(cat /etc/dsoxlab/jeton-api)
-        ID=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
-          "$URL/api/v4/projects?search=$PROJET&membership=true" \
-          | jq -r '.[0].id // empty')
-        if [ -z "$ID" ]; then
-          echo "aucun projet a supprimer"
-          exit 0
-        fi
-        # Premier appel : marque le projet et le renomme.
-        curl -sS --request DELETE --header "PRIVATE-TOKEN: $JETON" \
-          "$URL/api/v4/projects/$ID" >/dev/null
-        # Le chemin a change : il se relit, il ne se devine pas.
-        CHEMIN=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
-          "$URL/api/v4/projects/$ID" | jq -r '.path_with_namespace // empty')
-        if [ -n "$CHEMIN" ]; then
-          curl -sS --request DELETE --header "PRIVATE-TOKEN: $JETON" \
-            --data-urlencode "permanently_remove=true" \
-            --data-urlencode "full_path=$CHEMIN" \
-            "$URL/api/v4/projects/$ID" >/dev/null
-        fi
-      args:
-        executable: /bin/bash
-      environment:
-        PROJET: "{{ projet }}"
-        URL: "{{ url }}"
-      changed_when: true
-
-    # L'attente porte sur le CHEMIN EXACT, pas sur une recherche approchante :
-    # c'est tout le defaut corrige ci-dessus. Un HTTP 404 sur
-    # `/projects/root%2Fpipeline-craft` est la seule preuve que la place est
-    # libre pour le setup qui suit.
-    - name: Attendre que la place soit vraiment libre
-      ansible.builtin.shell: |
-        set -o pipefail
-        test -s /etc/dsoxlab/jeton-api || exit 0
-        JETON=$(cat /etc/dsoxlab/jeton-api)
-        CODE=$(curl -sS -o /dev/null -w '%{http_code}' \
-          --header "PRIVATE-TOKEN: $JETON" \
-          "$URL/api/v4/projects/root%2F$PROJET")
-        if [ "$CODE" = "404" ]; then
-          exit 0
-        fi
-        echo "le projet repond encore en HTTP $CODE"
-        exit 1
-      args:
-        executable: /bin/bash
-      environment:
-        PROJET: "{{ projet }}"
-        URL: "{{ url }}"
-      register: parti
-      retries: 12
-      delay: 5
-      until: parti.rc == 0
-      changed_when: false
-
-    - name: Retirer la copie locale du depot
-      ansible.builtin.file:
-        path: "{{ travail }}"
-        state: absent
+    - name: Le projet et la copie de travail partent
+      ansible.builtin.include_tasks: ../_commun/nettoyer.yaml

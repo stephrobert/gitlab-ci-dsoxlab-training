@@ -1,0 +1,19 @@
+---
+# Joué par `dsoxlab clean` : il remet la situation du scénario, pour que le lab
+# se rejoue à l'identique.
+#
+# Tout le travail vit dans `_commun/nettoyer.yaml`, que les labs partagent :
+# supprimer un projet GitLab demande plus qu'un appel, et le découvrir sept
+# fois serait sept fois le même diagnostic.
+- name: Nettoyer le lab gl-06-controler-execution
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-06"
+
+  tasks:
+    - name: Le projet et la copie de travail partent
+      ansible.builtin.include_tasks: ../_commun/nettoyer.yaml

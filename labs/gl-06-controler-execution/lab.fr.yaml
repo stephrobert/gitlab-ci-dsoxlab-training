@@ -1,0 +1,3 @@
+id: gl-06-controler-execution
+title: "Décider quand le pipeline tourne, et qui déploie"
+description: "Tous les jobs tournent à chaque push, sur chaque branche, et rien n'est jamais déployé. Décider quand un pipeline naît, quels jobs y entrent, et quel déploiement attend une décision humaine. La note porte sur le pipeline laissé sur la forge."

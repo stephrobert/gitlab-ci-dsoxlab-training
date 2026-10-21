@@ -1,0 +1,62 @@
+---
+# Joué par `dsoxlab run` : il pose un dépôt qui porte un secret en clair, à
+# deux endroits, et un pipeline qui l'affiche dans son journal.
+#
+# Le socle installe GitLab CE et son runner, et il est idempotent : après les
+# labs précédents, il ne réinstalle rien. `_commun/depot.yaml` pose le projet
+# et son contenu, avec la branche de départ pour seule variable.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-05-sortir-les-secrets
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-05"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-05` porte le secret `s3cret` à deux endroits : en valeur de
+    # repli dans `app/config.py`, et en variable de pipeline dans le
+    # `.gitlab-ci.yml`, que le job de tests affiche en clair par un `echo`.
+    # Le pipeline de départ est vert, et c'est bien le problème : rien ne
+    # signale la fuite.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-05"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        # Ce starter POUSSE l_image au registre (releve le 2026-10-21 : les
+        # branches starter/lab-05 a lab-14 le font). Sans cette adaptation, le
+        # job de construction echoue sur le registre en clair de la forge du
+        # lab, et le scenario, qui annonce un pipeline vert, serait faux.
+        adapter_registre_local: true
+
+    # Une variable laissee par un passage precedent ferait demarrer le lab a
+    # moitie fait : l'apprenant doit la creer lui-meme. On repart donc d'un
+    # projet SANS variable de CI, et on le verifie.
+    - name: Aucune variable de CI ne doit preexister
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        ID=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/root%2F$PROJET" | jq -r '.id // empty')
+        for CLE in $(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/$ID/variables?per_page=100" | jq -r '.[].key'); do
+          curl -sS --header "PRIVATE-TOKEN: $JETON" --request DELETE \
+            "$URL/api/v4/projects/$ID/variables/$CLE" >/dev/null
+        done
+        RESTE=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/$ID/variables" | jq 'length')
+        test "$RESTE" -eq 0
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: true

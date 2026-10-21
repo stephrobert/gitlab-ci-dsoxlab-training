@@ -1,0 +1,3 @@
+id: gl-07-valider-avant-de-pousser
+title: "Valider avant de pousser"
+description: "GitLab refuse le pipeline, et ce refus en cache un second défaut. Un troisième passe sans la moindre protestation. Trouver les trois sans pousser pour voir, puis prouver que le pipeline tourne. La note porte sur la configuration que GitLab a acceptée et sur les jobs qui ont tourné."
