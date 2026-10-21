@@ -16,6 +16,7 @@ dsoxlab check gl-06-controler-execution
 ```
 
 La note lit l'état du pipeline : un déploiement réussi, un déploiement en
-attente de décision, le vert conservé. Le bloc `workflow:` est le seul point
+attente de décision, et aucun job en échec. Le statut du pipeline
+sera `manual` tant que la production attend : c'est l'état voulu. Le bloc `workflow:` est le seul point
 lu dans la configuration que GitLab a comprise, faute d'effet observable sans
 pousser une branche.

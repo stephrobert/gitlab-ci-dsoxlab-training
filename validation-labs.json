@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 00:17:43",
+  "genere_le": "2026-10-22 00:31:31",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -66,25 +66,25 @@
     "gl-06-controler-execution": {
       "id": "gl-06-controler-execution",
       "chemin": "gl-06-controler-execution",
-      "verdict": "ROUGE",
+      "verdict": "VALIDE",
       "score_avant": 0,
-      "score_apres": 67,
-      "tests": "2/3",
-      "duree_s": 188.0,
+      "score_apres": 100,
+      "tests": "3/3",
+      "duree_s": 199.0,
       "traces": [],
-      "pourquoi": "la solution de référence ne passe que 2/3 tests (test_un_deploiement_automatique_a_reussi). Soit elle est fausse, soit un test exige l'impossible.",
+      "pourquoi": "",
       "date": "2026-10-22"
     },
     "gl-07-valider-avant-de-pousser": {
       "id": "gl-07-valider-avant-de-pousser",
       "chemin": "gl-07-valider-avant-de-pousser",
-      "verdict": "ROUGE",
+      "verdict": "VALIDE",
       "score_avant": 0,
-      "score_apres": 75,
-      "tests": "3/4",
-      "duree_s": 139.7,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 142.2,
       "traces": [],
-      "pourquoi": "la solution de référence ne passe que 3/4 tests (test_le_pipeline_est_vert). Soit elle est fausse, soit un test exige l'impossible.",
+      "pourquoi": "",
       "date": "2026-10-22"
     }
   }

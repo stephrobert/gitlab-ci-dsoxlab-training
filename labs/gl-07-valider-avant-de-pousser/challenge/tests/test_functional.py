@@ -155,14 +155,43 @@ def test_le_job_de_tests_a_tourne_et_reussi(forge, projet_du_lab):
     )
 
 
-def test_le_pipeline_est_vert(forge, projet_du_lab):
+def test_aucun_job_n_a_echoue(forge, projet_du_lab):
+    """La sante du pipeline, mesuree sur ses JOBS et non sur son statut.
+
+    A ce rang du parcours, le pipeline porte deja un deploiement de production
+    en `when: manual` (acquis du lab 06). Mesure du 2026-10-22 : un pipeline
+    dont un job manuel attend porte alors le statut **`manual`**, pas
+    `success`, et exiger `success` ferait echouer un travail juste. On mesure
+    donc ce qui compte : aucun job en echec.
+    """
     dernier = dernier_pipeline(forge, projet_du_lab.get("default_branch") or "main")
     assert dernier is not None, message(
         en="No pipeline has run on the default branch since your corrections.",
         fr="Aucun pipeline n'a tourné sur la branche par défaut depuis vos corrections.",
     )
     statut = dernier.get("status")
-    assert statut == "success", message(
-        en=f"The latest pipeline on the default branch is '{statut}', not 'success'.",
-        fr=f"Le dernier pipeline de la branche par défaut est « {statut} », pas « success ».",
+    tous = jobs(forge, dernier["id"], projet_du_lab["id"])
+    echoues = [
+        j.get("name") for j in tous
+        if j.get("status") in ("failed", "canceled")
+    ]
+    assert not echoues, message(
+        en=(
+            f"These jobs failed in the latest pipeline: {echoues} (pipeline "
+            f"status '{statut}')."
+        ),
+        fr=(
+            f"Ces jobs ont échoué dans le dernier pipeline : {echoues} (statut "
+            f"du pipeline « {statut} »)."
+        ),
+    )
+    assert statut in ("success", "manual"), message(
+        en=(
+            f"The latest pipeline on the default branch is '{statut}'. Expected "
+            "'success', or 'manual' while a manual job is still waiting."
+        ),
+        fr=(
+            f"Le dernier pipeline de la branche par défaut est « {statut} ». "
+            "Attendu « success », ou « manual » tant qu'un job manuel attend."
+        ),
     )

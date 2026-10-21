@@ -12,7 +12,8 @@ All of its jobs run on every push, on any branch, and nothing is deployed.
 
 1. A deployment job **succeeded** automatically on the default branch.
 2. Another deployment job waits for a **human decision** (`manual` status).
-3. The pipeline stays **green**.
+3. **No job failed.** The pipeline's own status will be **`manual`** while
+   the production deployment waits: that is the intended state.
 4. The configuration carries a **`workflow:`** block.
 
 The repository ships `scripts/deploy-demo.sh <environment>`, which simulates a

@@ -13,7 +13,8 @@ Its pipeline is red with **no job at all**: the configuration is refused.
 1. GitLab **accepts** the configuration.
 2. No **three-star** pattern is left in the merged configuration.
 3. The test job **ran and passed**.
-4. The pipeline is **green**.
+4. **No job in the pipeline failed.** Its status will be **`manual`**: the
+   production deployment awaits its decision.
 
 ## Validating without pushing
 

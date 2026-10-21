@@ -44,7 +44,9 @@ GitLab sait dire ce qu'il pense d'une configuration sans l'exécuter :
    fusionnée ;
 3. le job de tests a **tourné et réussi**, ce qui ferme les deux premiers
    défauts d'un coup ;
-4. le pipeline est **vert**.
+4. **aucun job du pipeline n'a échoué**. Le statut du pipeline sera
+   **`manual`**, le déploiement de production acquis au lab précédent
+   attendant sa décision.
 
 Aucun test ne mesure votre méthode : l'état final d'une personne méthodique et
 celui d'une personne qui a tâtonné sont identiques. La méthode est le sujet du

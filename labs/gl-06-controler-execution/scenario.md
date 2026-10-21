@@ -33,8 +33,10 @@ branch moves, and **production**, which waits for a decision.
 
 1. a deployment job **succeeded** automatically on the default branch;
 2. another deployment job waits for a **human decision**, in `manual` status;
-3. the pipeline stays **green**: adding two jobs does not break what worked. A
-   pending manual job does not make a pipeline red;
+3. **no job failed**: adding two jobs does not break what worked. Mind the
+   pipeline's own status, which becomes **`manual`** rather than "success"
+   while the production deployment awaits its decision: that is the intended
+   state, not a failure;
 4. the configuration carries a `workflow:` block.
 
 One honest note on point 4: a `workflow:` block's effect can only be observed

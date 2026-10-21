@@ -37,8 +37,10 @@ décision.
    défaut ;
 2. un autre job de déploiement attend une **décision humaine**, en statut
    `manual` ;
-3. le pipeline reste **vert** : ajouter deux jobs ne casse pas ce qui
-   marchait. Un job manuel en attente ne rend pas un pipeline rouge ;
+3. **aucun job n'a échoué** : ajouter deux jobs ne casse pas ce qui
+   marchait. Attention au statut du pipeline, qui passe à **`manual`** et non
+   à « success » tant que le déploiement de production attend sa décision :
+   c'est l'état voulu, pas un échec ;
 4. la configuration porte un bloc `workflow:`.
 
 Une précision sur le point 4, parce qu'elle est honnête : l'effet d'un

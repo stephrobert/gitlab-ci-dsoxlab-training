@@ -41,7 +41,9 @@ GitLab will tell you what it thinks of a configuration without running it:
 1. GitLab **accepts** the configuration;
 2. no **three-star** pattern is left in the merged configuration;
 3. the test job **ran and passed**, which closes the first two faults at once;
-4. the pipeline is **green**.
+4. **no job in the pipeline failed**. The pipeline's status will be
+   **`manual`**, the production deployment inherited from the previous lab
+   awaiting its decision.
 
 No test measures your method: the end state of a methodical person and that of
 someone who guessed are identical. The method is the lab's subject, not its

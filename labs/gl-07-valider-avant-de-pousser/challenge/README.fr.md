@@ -13,7 +13,8 @@ Son pipeline est rouge **sans aucun job** : la configuration est refusée.
 1. GitLab **accepte** la configuration.
 2. Plus aucun motif à **trois étoiles** dans la configuration fusionnée.
 3. Le job de tests a **tourné et réussi**.
-4. Le pipeline est **vert**.
+4. **Aucun job du pipeline n'a échoué.** Son statut sera **`manual`** :
+   le déploiement de production attend sa décision.
 
 ## Valider sans pousser
 

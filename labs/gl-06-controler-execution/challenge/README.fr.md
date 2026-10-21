@@ -15,7 +15,9 @@ n'est déployé.
    défaut.
 2. Un autre job de déploiement attend une **décision humaine** (statut
    `manual`).
-3. Le pipeline reste **vert**.
+3. **Aucun job n'a échoué.** Le statut du pipeline lui-même sera
+   **`manual`** tant que le déploiement de production attend : c'est l'état
+   voulu.
 4. La configuration porte un bloc **`workflow:`**.
 
 Le dépôt fournit `scripts/deploy-demo.sh <environnement>`, qui simule un

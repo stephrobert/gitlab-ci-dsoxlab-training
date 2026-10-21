@@ -16,6 +16,7 @@ dsoxlab check gl-06-controler-execution
 ```
 
 Grading reads the pipeline's state: one successful deployment, one waiting for
-a decision, the green kept. The `workflow:` block is the only point read from
+a decision, and no failed job. The pipeline's status will be `manual`
+while production waits: that is the intended state. The `workflow:` block is the only point read from
 the configuration GitLab understood, for lack of an observable effect without
 pushing a branch.
