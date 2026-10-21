@@ -65,11 +65,57 @@ def playbooks() -> list[Path]:
     return [f for f in dict.fromkeys(trouves) if f.is_file()]
 
 
+def est_un_playbook(fichier: Path) -> bool:
+    """Un playbook declare des plays (`hosts:`) ; un fichier de taches, non.
+
+    `labs/_commun/depot.yaml` est une LISTE DE TACHES, incluse par chaque
+    setup. Passe tel quel a `--syntax-check`, il rend
+    « 'ansible.builtin.file' is not a valid attribute for a Play » : le
+    controle mesurerait alors sa propre meprise, pas le fichier. On ne
+    l'ecarte pas pour autant, on l'enveloppe (voir `charge`), parce que c'est
+    justement le fichier le plus partage du catalogue.
+    """
+    try:
+        import yaml  # dependance deja presente dans le catalogue
+
+        doc = yaml.safe_load(fichier.read_text())
+    except Exception:
+        # Illisible ou chiffre (ansible-vault) : on laisse Ansible trancher.
+        return True
+    if not isinstance(doc, list) or not doc:
+        return True
+    return any(isinstance(e, dict) and "hosts" in e for e in doc)
+
+
 def charge(fichier: Path) -> tuple[bool, str]:
-    cmd = ["ansible-playbook", "--syntax-check", str(fichier)]
+    enveloppe: Path | None = None
+    if not est_un_playbook(fichier):
+        enveloppe = RACINE / f".check-taches-{fichier.stem}.yml"
+        enveloppe.write_text(
+            "---\n"
+            "# Enveloppe temporaire, ecrite par scripts/check-playbooks.py pour\n"
+            "# charger un FICHIER DE TACHES comme Ansible le fera a l'execution.\n"
+            "- name: Enveloppe de controle\n"
+            "  hosts: localhost\n"
+            "  gather_facts: false\n"
+            "  tasks:\n"
+            # Chemin ABSOLU : un `relative_to` levait ValueError des qu'on
+            # nommait un fichier hors du catalogue, ce qui est exactement ce
+            # qu'on fait pour eprouver ce controle.
+            f"    - ansible.builtin.import_tasks: {fichier.resolve()}\n"
+        )
+        cible = enveloppe
+    else:
+        cible = fichier
+
+    cmd = ["ansible-playbook", "--syntax-check", str(cible)]
     if VAULT.is_file():
         cmd += ["--vault-password-file", str(VAULT)]
-    r = subprocess.run(cmd, cwd=RACINE, capture_output=True, text=True)
+    try:
+        r = subprocess.run(cmd, cwd=RACINE, capture_output=True, text=True)
+    finally:
+        if enveloppe is not None:
+            enveloppe.unlink(missing_ok=True)
     if r.returncode == 0:
         return True, ""
     # Le message utile est sur stderr, et la ligne qui nomme la cause est

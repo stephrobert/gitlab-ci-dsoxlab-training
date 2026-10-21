@@ -34,11 +34,17 @@ URL = "http://gitlab-1.lab"
 PROJET = "pipeline-craft"
 
 
-def api(host, chemin: str, params: str = "") -> object | None:
+def api(host, chemin: str, params: str = "", brut: bool = False) -> object | None:
     """Appelle l'API GitLab depuis la VM et rend le JSON, ou None.
 
     `chemin` commence par `/` et suit `/api/v4`. `params` est une chaine de
     requete deja encodee, sans le `?`.
+
+    `brut=True` rend le TEXTE de la reponse au lieu de la decoder. Deux
+    endpoints en ont besoin, et ce ne sont pas des cas marginaux : le journal
+    d'un job (`/jobs/:id/trace`) et le contenu d'un fichier
+    (`/repository/files/:chemin/raw`) ne rendent pas du JSON. Les decoder
+    donnerait `None`, c'est-a-dire un test qui croit ne rien avoir trouve.
     """
     url = f"{URL}/api/v4{chemin}"
     if params:
@@ -53,10 +59,32 @@ def api(host, chemin: str, params: str = "") -> object | None:
     r = host.run(cmd)
     if r.rc != 0 or not r.stdout.strip():
         return None
+    if brut:
+        return r.stdout
     try:
         return json.loads(r.stdout)
     except json.JSONDecodeError:
         return None
+
+
+def lint_configuration(host, projet_id: int, ref: str = "main") -> dict | None:
+    """Ce que le linter CI de GitLab dit de la configuration de la branche.
+
+    POURQUOI PASSER PAR LUI PLUTOT QUE RELIRE LE YAML. Un pipeline refuse
+    apparait « failed » AVEC ZERO JOB, et le champ `yaml_errors` du pipeline
+    rend `null` : rien ne dit pourquoi. Le linter, lui, nomme la cause, et
+    c'est ainsi qu'a ete trouve un job nomme `image`, mot-cle reserve
+    (« image is defined in top-level and `default:` entry »).
+
+    Rend le rapport (`valid`, `errors`, `warnings`), ou None si le linter n'a
+    pas repondu : un test ne doit jamais conclure sur une mesure absente.
+    """
+    rapport = api(
+        host,
+        f"/projects/{projet_id}/ci/lint",
+        f"dry_run=true&ref={ref}",
+    )
+    return rapport if isinstance(rapport, dict) else None
 
 
 def projet(host, chemin: str = PROJET) -> dict | None:
@@ -119,14 +147,34 @@ def statut(host, ref: str | None = None) -> str | None:
 
 
 def fichier(host, chemin: str, ref: str = "main", projet_id: int | None = None) -> str | None:
-    """Le contenu d'un fichier du depot, tel que la forge le sert."""
+    """Le contenu d'un fichier TEL QUE LA FORGE LE SERT, ou None.
+
+    Pourquoi lire dans la forge et pas sur le disque de la VM : un fichier
+    corrige localement mais jamais pousse laisse le serveur, et donc le
+    pipeline, dans son etat d'avant. C'est l'etat pousse qui compte.
+
+    DEUX PIEGES, ET LE SECOND RENDAIT CETTE FONCTION INUTILISABLE :
+
+      - le chemin s'encode pour l'API, les `/` en `%2F`, ET le point d'un nom
+        comme `.gitlab-ci.yml` en `%2E` : sinon GitLab y lit une extension de
+        format et rend du JSON a la place du fichier ;
+      - l'appel doit demander le texte BRUT. La premiere version appelait
+        `api()` sans `brut=True` : la reponse, qui n'est pas du JSON, etait
+        jetee au decodage, et la fonction rendait donc TOUJOURS None. Un test
+        qui s'y fiait aurait conclu « fichier absent » sur un fichier present.
+    """
     if projet_id is None:
         p = projet(host)
         if p is None:
             return None
         projet_id = p["id"]
     encode = chemin.replace("/", "%2F").replace(".", "%2E")
-    out = api(host, f"/projects/{projet_id}/repository/files/{encode}/raw", f"ref={ref}")
+    out = api(
+        host,
+        f"/projects/{projet_id}/repository/files/{encode}/raw",
+        f"ref={ref}",
+        brut=True,
+    )
     return out if isinstance(out, str) else None
 
 

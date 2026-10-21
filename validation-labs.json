@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-21 23:00:45",
+  "genere_le": "2026-10-21 23:20:55",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -10,7 +10,31 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 107.6,
+      "duree_s": 106.9,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-21"
+    },
+    "gl-02-lire-un-echec": {
+      "id": "gl-02-lire-un-echec",
+      "chemin": "gl-02-lire-un-echec",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 102.1,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-21"
+    },
+    "gl-03-images-et-runners": {
+      "id": "gl-03-images-et-runners",
+      "chemin": "gl-03-images-et-runners",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 129.5,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-21"

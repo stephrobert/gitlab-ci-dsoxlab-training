@@ -1,0 +1,3 @@
+id: gl-03-images-et-runners
+title: "La bonne image pour chaque job"
+description: "Trois jobs partagent la même image Python complète, et celui qui construit l'image y lance docker build, ce qui ne peut pas fonctionner. Choisir une image adaptée au travail de chaque job, et donner un démon Docker au job de construction. La note porte sur les journaux des jobs, jamais sur le fichier."

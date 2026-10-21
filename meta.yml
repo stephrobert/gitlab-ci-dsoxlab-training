@@ -57,6 +57,9 @@ sections:
       of the code, and control over when each job runs.
     labs:
       - gl-01-premier-pipeline
+      - gl-02-lire-un-echec
+      - gl-03-images-et-runners
+      - gl-04-artifacts-et-cache
 
   - id: livrer
     title: "Deliver"

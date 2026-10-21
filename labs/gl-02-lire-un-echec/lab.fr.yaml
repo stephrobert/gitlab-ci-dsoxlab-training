@@ -1,0 +1,3 @@
+id: gl-02-lire-un-echec
+title: "Lire un échec de pipeline et le corriger"
+description: "Diagnostiquer un pipeline rouge avec les messages de GitLab : une erreur de configuration qui empêche tout job de tourner, puis deux erreurs de code que seul un journal révèle. La note porte sur les trois corrections, lues dans l'API, jamais sur les commandes tapées."

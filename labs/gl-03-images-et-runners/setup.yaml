@@ -1,0 +1,34 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline qui part du mauvais pied, trois
+# jobs sur la même image complète, dont un qui tente un `docker build` sans
+# client Docker.
+#
+# Le socle installe GitLab CE et son runner, et il est idempotent : après les
+# labs précédents, il ne réinstalle rien. `_commun/depot.yaml` pose le projet
+# et son contenu, avec la branche de départ pour seule variable.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-03-images-et-runners
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-03"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-03` porte un pipeline qui tourne, mais mal : les trois jobs
+    # partagent `python:3.12`, et `docker-build` y lance `docker build` alors
+    # que cette image n'a aucun client Docker. Comme pour le lab 02, le
+    # pipeline de départ EST le sujet : on le garde et on attend qu'il
+    # finisse.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-03"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true

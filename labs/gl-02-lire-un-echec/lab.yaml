@@ -1,0 +1,32 @@
+# Lab gl-02-lire-un-echec. Les champs marqués REQUIS sont exigés par le validator : sans eux,
+# le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-02-lire-un-echec                      # REQUIS
+title: "Read a failure and fix it"           # REQUIS
+level: c1                     # REQUIS
+description: "Diagnose a red pipeline from GitLab's own messages: one configuration error that stops any job from running, then two code errors only a job log reveals. Graded on the three fixes, read from the API, never on the commands typed."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - debug
+  - pipeline
+  - stages
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-02-lire-un-echec/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 30m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  # Rien à vérifier après un redémarrage : ce lab note un pipeline et l'état
+  # d'un dépôt, pas un service qui doit survivre au reboot.
+  persistence_after_reboot: false

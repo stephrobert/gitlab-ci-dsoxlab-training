@@ -1,0 +1,30 @@
+# Lab gl-03-images-et-runners. Les champs marqués REQUIS sont exigés par le validator : sans eux,
+# le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-03-images-et-runners                  # REQUIS
+title: "The right image for each job"        # REQUIS
+level: c1                     # REQUIS
+description: "Three jobs share one heavy Python image, and the build job runs docker build from it, which cannot work. Pick an image that matches what each job does, and give the build job a Docker daemon. Graded on the job logs, never on the file."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - images
+  - runners
+  - docker
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-03-images-et-runners/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 30m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
