@@ -63,6 +63,7 @@ sections:
       - gl-05-sortir-les-secrets
       - gl-06-controler-execution
       - gl-07-valider-avant-de-pousser
+      - gl-08-declencher-autrement
 
   - id: livrer
     title: "Deliver"

@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 00:31:31",
+  "genere_le": "2026-10-22 00:57:51",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -83,6 +83,18 @@
       "score_apres": 100,
       "tests": "4/4",
       "duree_s": 142.2,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-08-declencher-autrement": {
+      "id": "gl-08-declencher-autrement",
+      "chemin": "gl-08-declencher-autrement",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 281.8,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"

@@ -1,0 +1,3 @@
+id: gl-08-declencher-autrement
+title: "Déclencher un pipeline sans pousser"
+description: "Le pipeline ne sait naître que d'un push. Lui faire accepter une planification, un appel à l'API et un jeton de déclenchement, et réserver un job à une seule source. La note porte sur les planifications, les jetons, et les pipelines qui ont réellement tourné."

@@ -1,0 +1,30 @@
+# Lab gl-08-declencher-autrement. Les champs marqués REQUIS sont exigés par le validator :
+# sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-08-declencher-autrement               # REQUIS
+title: "Start a pipeline without a push"     # REQUIS
+level: c2                     # REQUIS
+description: "The pipeline only knows how to be born from a push. Make it accept a schedule, an API call and a trigger token, and reserve one job to a single source. Graded on the schedules, the trigger tokens, and the pipelines that actually ran."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - triggers
+  - schedules
+  - api
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-08-declencher-pipeline/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 35m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
