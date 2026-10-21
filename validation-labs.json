@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 01:19:51",
+  "genere_le": "2026-10-22 01:27:54",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -119,6 +119,18 @@
       "score_apres": 100,
       "tests": "2/2",
       "duree_s": 199.2,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-11-diagnostiquer-un-job-bloque": {
+      "id": "gl-11-diagnostiquer-un-job-bloque",
+      "chemin": "gl-11-diagnostiquer-un-job-bloque",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "2/2",
+      "duree_s": 127.2,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"

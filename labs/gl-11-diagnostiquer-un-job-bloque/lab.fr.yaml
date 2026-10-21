@@ -1,0 +1,3 @@
+id: gl-11-diagnostiquer-un-job-bloque
+title: "Deux pannes muettes : rien ne tourne, rien ne se plaint"
+description: "Vous poussez, et rien ne se passe : aucun pipeline. Une fois cela réglé, un job attend indéfiniment sans échouer. Diagnostiquer deux pannes qui ne produisent aucun message d'erreur, puis prouver que le pipeline tourne. La note porte sur le pipeline laissé sur la forge."

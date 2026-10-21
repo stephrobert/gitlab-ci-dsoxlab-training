@@ -1,0 +1,41 @@
+---
+# Joué par `dsoxlab run` : il pose deux pannes silencieuses, et aucun pipeline.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-11-diagnostiquer-un-job-bloque
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-11"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-11` porte DEUX pannes, et aucune ne produit de message :
+    #
+    #   - son `workflow:` n'accepte qu'une seule provenance, `$CI_COMMIT_TAG`.
+    #     Un push sur la branche par défaut ne crée donc AUCUN pipeline, et
+    #     l'onglet reste vide. Rien n'est rouge : il n'y a rien ;
+    #   - son job de lint exige un runner porteur du tag
+    #     `missing-runner-tag`, que personne n'a. Le job resterait donc en
+    #     attente indéfiniment, sans échouer.
+    #
+    # `attendre_pipeline_depart` EST A FAUX, et c'est la consequence directe de
+    # la premiere panne : il n'y a pas de pipeline de depart a attendre.
+    # Attendre ici ferait echouer le setup au bout de dix minutes, sur un etat
+    # pourtant correct, comme cela s'est produit sur le lab 08 pour une autre
+    # raison.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-11"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: false
+        adapter_registre_local: true

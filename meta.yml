@@ -66,6 +66,7 @@ sections:
       - gl-08-declencher-autrement
       - gl-09-publier-au-registre
       - gl-10-rapports-de-qualite
+      - gl-11-diagnostiquer-un-job-bloque
 
   - id: livrer
     title: "Deliver"
