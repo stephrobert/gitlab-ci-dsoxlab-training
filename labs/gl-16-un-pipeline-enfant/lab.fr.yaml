@@ -1,0 +1,3 @@
+id: gl-16-un-pipeline-enfant
+title: "Un pipeline qui écrit ses propres jobs"
+description: "Tous les jobs sont écrits à l'avance : le pipeline ne peut pas décider, à l'exécution, qu'il lui en faut un de plus. Générer un pipeline enfant pendant l'exécution, le déclencher, et faire attendre le parent jusqu'à son résultat. La note porte sur l'enfant que GitLab a réellement joué."

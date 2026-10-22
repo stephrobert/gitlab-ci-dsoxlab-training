@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 07:19:36",
+  "genere_le": "2026-10-22 07:40:33",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -166,7 +166,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "1/1",
-      "duree_s": 159.8,
+      "duree_s": 159.9,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -178,7 +178,19 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "2/2",
-      "duree_s": 179.8,
+      "duree_s": 196.5,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-16-un-pipeline-enfant": {
+      "id": "gl-16-un-pipeline-enfant",
+      "chemin": "gl-16-un-pipeline-enfant",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "2/2",
+      "duree_s": 213.1,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"

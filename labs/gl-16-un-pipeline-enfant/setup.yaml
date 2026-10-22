@@ -1,0 +1,32 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline dont toutes les étapes sont
+# connues d'avance.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-16-un-pipeline-enfant
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-16"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-16` est le pipeline du lab 15 : découpé, factorisé, avec sa
+    # matrice. Tous ses jobs sont écrits à l'avance, et c'est le point de
+    # départ du lab : un pipeline ne peut pas décider, à l'exécution, qu'il
+    # lui faut un job de plus.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-16"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true

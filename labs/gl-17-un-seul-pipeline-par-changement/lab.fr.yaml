@@ -1,0 +1,3 @@
+id: gl-17-un-seul-pipeline-par-changement
+title: "Un changement, un pipeline"
+description: "Une branche qui porte une demande de fusion ouverte lance deux pipelines pour le même commit : la machine fait tout deux fois et la demande affiche deux résultats. Rendre le workflow « demande de fusion d'abord », et garder le bon. La note se prend en comptant les pipelines d'un commit."

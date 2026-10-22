@@ -146,11 +146,37 @@
 #
 # Idempotent par construction : la regexp ne reconnait que la forme courte, et
 # un fichier deja converti ne correspond plus.
+#
+# L'ADAPTATION PORTE SUR TOUS LES FICHIERS DE PIPELINE, et pas seulement sur
+# `.gitlab-ci.yml`. Mesure le 2026-10-22 sur le lab 16 : depuis le lab 14, les
+# jobs vivent dans `ci/*.yml`, et c'est la que se trouve le service `dind`. Un
+# patch limite au fichier principal laissait donc le job de construction des
+# etats de depart des labs 14, 15 et 16 echouer sur « http: server gave HTTP
+# response to HTTPS client ».
+#
+# Les labs 14 et 15 y avaient echappe par hasard : leurs corriges reecrivent
+# `ci/build.yml` avec l'option, donc leur etat FINAL etait bon. Leur etat de
+# DEPART portait un job casse que rien ne mesurait, les tests ne regardant les
+# echecs qu'apres la solution.
+- name: Les fichiers de pipeline du depot
+  ansible.builtin.find:
+    paths: "{{ travail }}/{{ projet }}"
+    patterns: "*.yml,*.yaml"
+    recurse: true
+    depth: 3
+  register: fichiers_pipeline
+  when:
+    - adapter_registre_local | default(false) | bool
+    - not deja_git.stat.exists
+
 - name: Dire au service Docker que le registre du lab est en clair
   ansible.builtin.replace:
-    path: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+    path: "{{ item.path }}"
     regexp: '^(\s*)-\s*(docker:[\w.@:-]*dind[\w.@:-]*)\s*$'
     replace: '\1- name: \2\n\1  alias: docker\n\1  command: ["--insecure-registry=gitlab-1.lab:5050"]'
+  loop: "{{ fichiers_pipeline.files | default([]) }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
   when:
     - adapter_registre_local | default(false) | bool
     - not deja_git.stat.exists

@@ -1,0 +1,30 @@
+# Lab gl-16-un-pipeline-enfant. Les champs marqués REQUIS sont exigés par le validator :
+# sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-16-un-pipeline-enfant                 # REQUIS
+title: "A pipeline that writes its own jobs"   # REQUIS
+level: c3                     # REQUIS
+description: "Every job is written in advance, so the pipeline cannot decide at run time that it needs one more. Generate a child pipeline during the run, trigger it, and make the parent wait for its result. Graded on the child GitLab actually ran."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - child-pipelines
+  - trigger
+  - artifacts
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-16-pipelines-dynamiques/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 40m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

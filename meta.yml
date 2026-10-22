@@ -71,6 +71,8 @@ sections:
       - gl-13-factoriser-le-yaml
       - gl-14-externaliser-les-jobs
       - gl-15-une-matrice-de-tests
+      - gl-16-un-pipeline-enfant
+      - gl-17-un-seul-pipeline-par-changement
 
   - id: livrer
     title: "Deliver"

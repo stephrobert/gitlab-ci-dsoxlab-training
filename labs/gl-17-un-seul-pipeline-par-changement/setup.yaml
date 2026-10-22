@@ -1,0 +1,61 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline qui tourne deux fois pour un
+# seul changement.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-17-un-seul-pipeline-par-changement
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-17"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-17` accepte DEUX sources qui se recouvrent : le push et
+    # l'événement de demande de fusion. Sur une branche qui porte une demande
+    # de fusion ouverte, chaque push produit donc DEUX pipelines pour le même
+    # commit : la machine fait tout deux fois, et la demande de fusion affiche
+    # deux résultats dont personne ne sait lequel compte.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-17"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true
+
+    # Une demande de fusion laissée par un passage précédent ferait démarrer le
+    # lab à moitié fait : c'est le geste que l'apprenant doit poser.
+    - name: Aucune demande de fusion ne doit preexister
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        for IID in $(curl -sS --header "$H" \
+          "$API/projects/$ID/merge_requests?state=opened&per_page=100" | jq -r '.[]?.iid'); do
+          curl -sS --header "$H" --request DELETE \
+            "$API/projects/$ID/merge_requests/$IID" >/dev/null
+        done
+        RESTE=$(curl -sS --header "$H" \
+          "$API/projects/$ID/merge_requests?state=opened" | jq '[.[]?] | length')
+        if [ "$RESTE" -ne 0 ]; then
+          echo "il reste $RESTE demande(s) de fusion ouverte(s)"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: true
