@@ -5,8 +5,8 @@
 
 [project]
 name = "gitlab-ci-dsoxlab-training"
-version = "0.1.0"
-description = "À remplir."
+version = "0.1.1"
+description = "Labs GitLab CI/CD de la formation, joués par la CLI dsoxlab"
 requires-python = ">=3.11"
 dependencies = []
 
