@@ -64,6 +64,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import empreinte_lab
 import verdict_check
 from isolation_vm import IsolationEteinte, hotes_du_lab, snapshot_reset
 from lecture_yaml import YamlIllisible, lire_yaml
@@ -72,6 +73,14 @@ RACINE = Path(__file__).resolve().parent.parent
 LABS = RACINE / "labs"
 SOLUTIONS = RACINE / "solution"
 VERDICTS = RACINE / "validation-labs.json"
+
+# Ce qui, HORS du répertoire d'un lab, détermine quand même ce qu'il mesure, et
+# qui entre donc dans son empreinte. DEUX chemins ici, et le second est celui
+# qui a coûté le plus cher : `labs/_commun/` porte le socle, le client d'API et
+# l'adaptation au registre local, donc TOUS les labs à la fois. Le 2026-10-22,
+# une correction de ce répertoire a périmé les vingt et un verdicts sans
+# qu'aucun contrôle le dise.
+PARTAGES: tuple[str, ...] = ("conftest.py", "labs/_commun")
 VAULT = RACINE / ".vault-pass"
 
 
@@ -423,7 +432,16 @@ def main() -> int:
         # Chaque lab porte la date de SON rejeu : `genere_le` ne date que la
         # campagne, et un lab rejoué à l'identique serait sinon indiscernable
         # d'une entrée ancienne recopiée.
-        resultats[identifiant] = asdict(v) | {"date": time.strftime("%Y-%m-%d")}
+        resultats[identifiant] = asdict(v) | {
+            "date": time.strftime("%Y-%m-%d"),
+            # L'EMPREINTE de ce qui vient d'être mesuré. C'est elle, et non la
+            # date, qui dit plus tard si ce verdict vaut encore : une date de
+            # commit répond à « ce fichier a-t-il été touché après », alors
+            # qu'on veut savoir « est-ce encore le contenu attesté ». Les deux
+            # divergent dès qu'on fusionne en squash, qui redate tout le
+            # travail d'une branche à l'instant de la fusion.
+            "empreinte": empreinte_lab.empreinte(RACINE, v.chemin, PARTAGES),
+        }
         detail = f"{v.score_avant} -> {v.score_apres}" if v.score_avant is not None else ""
         print(f"{v.verdict} {detail} ({v.duree_s}s)")
         if v.pourquoi:
