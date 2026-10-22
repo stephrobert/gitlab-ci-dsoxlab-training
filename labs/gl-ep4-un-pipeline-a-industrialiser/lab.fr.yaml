@@ -1,0 +1,5 @@
+# Surcharge française du lab gl-ep4-un-pipeline-a-industrialiser. Elle ne porte QUE `title` et
+# `description` : tout autre champ y est ignoré en silence, parce que le
+# contrat ne se traduit pas.
+title: "Épreuve de niveau : un pipeline à industrialiser"
+description: "Le pipeline est vert, mais il n'est industrialisé qu'à moitié : le même préambule est recopié trois fois, les tests s'exécutent à la suite dans un seul job, un pipeline enfant est généré sans jamais servir, les relances rejouent n'importe quel échec et le déploiement n'a ni verrou ni limite de durée. Cinq défauts, aucun n'est nommé. L'industrialiser, la note se prenant sur l'état que la forge rapporte par son API. Aucune fonctionnalité Premium n'est nécessaire."

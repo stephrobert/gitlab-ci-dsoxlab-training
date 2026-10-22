@@ -64,6 +64,7 @@ sections:
       - gl-06-controler-execution
       - gl-07-valider-avant-de-pousser
       - gl-ep1-un-pipeline-qui-dit-vrai
+      - gl-ep4-un-pipeline-a-industrialiser
 
   - id: livrer
     title: "Deliver"

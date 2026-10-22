@@ -1,0 +1,387 @@
+---
+# Joue par `dsoxlab run` : il pose un pipeline VERT, mais industrialise a moitie.
+#
+# L enonce est fabrique ici et non pris dans une branche `starter/` : la
+# combinaison de defauts n existe dans aucune branche amont. Le depot fournit
+# la forge et le projet, les fichiers de pipeline sont ecrits ici. Les jobs
+# n executent que de petits scripts shell de `qa/` : on note la STRUCTURE du
+# pipeline, et le pipeline de depart tourne en moins de trois minutes.
+#
+# CINQ DEFAUTS, et aucun job n echoue pour autant :
+#
+#   1. trois jobs recopient le meme preambule (image, preparation, reglages) ;
+#   2. les tests s executent a la suite dans UN job, sans matrice, et les
+#      etapes s attendent sans graphe de dependances ;
+#   3. un pipeline enfant est genere, mais son fichier n est pas declare comme
+#      artefact : le declencheur lit un fichier statique ;
+#   4. `retry: 2` rejoue n importe quel echec, y compris un echec du script ;
+#   5. le deploiement n a ni verrou ni limite de duree.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent. Le runner n est pas touche ici.
+#
+# ECRITURE : ce fichier ne contient AUCUNE apostrophe isolee, et aucune
+# longueur de variable shell du genre dollar-accolade-diese. Les deux font
+# refuser le playbook au chargement (voir _commun/depot.yaml).
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer l_epreuve gl-ep4-un-pipeline-a-industrialiser
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-ep4"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+    depot: "/opt/dsoxlab/gl-ep4/pipeline-craft"
+    image_alpine: "alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
+
+  tasks:
+    # La copie de travail est testee AVANT le depot commun : c est elle qui dit
+    # si l epreuve est jouee pour la premiere fois ou rejouee. Les defauts ne
+    # sont poses que sur une copie neuve, jamais par-dessus le travail de
+    # l apprenant.
+    - name: La copie de travail existe-t-elle deja ?
+      ansible.builtin.stat:
+        path: "{{ travail }}/{{ projet }}/.git"
+      register: copie_ep4
+
+    - name: Le projet de l_epreuve dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "main"
+        exiger_absence_pipeline: "{{ not copie_ep4.stat.exists }}"
+        effacer_pipelines: "{{ not copie_ep4.stat.exists }}"
+        attendre_pipeline_depart: false
+        adapter_registre_local: false
+
+    - name: Le repertoire des scripts de qualite
+      ansible.builtin.file:
+        path: "{{ depot }}/{{ item }}"
+        state: directory
+        mode: "0755"
+      loop:
+        - qa
+        - child
+      when: not copie_ep4.stat.exists
+
+    # Un seul script d analyse, appele trois fois avec un argument different.
+    - name: Le script d analyse statique
+      ansible.builtin.copy:
+        dest: "{{ depot }}/qa/lint.sh"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          # Usage : qa/lint.sh <cible> [duree]
+          set -eu
+          echo "analyse de $1"
+          sleep "${2:-3}"
+          echo "LINT-OK $1"
+      when: not copie_ep4.stat.exists
+
+    # Une suite de tests, qui ecrit un rapport JUnit non vide.
+    - name: Le script d une suite de tests
+      ansible.builtin.copy:
+        dest: "{{ depot }}/qa/suite.sh"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          # Usage : qa/suite.sh <suite>
+          set -eu
+          echo "suite $1"
+          sleep 6
+          mkdir -p reports
+          cat > "reports/$1.xml" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <testsuite name="$1" tests="2" failures="0" errors="0" skipped="0">
+            <testcase classname="$1" name="cas_nominal" time="0.5"/>
+            <testcase classname="$1" name="cas_limite" time="0.5"/>
+          </testsuite>
+          EOF
+          echo "SUITE-OK $1"
+      when: not copie_ep4.stat.exists
+
+    - name: Le script de deploiement
+      ansible.builtin.copy:
+        dest: "{{ depot }}/qa/deploy.sh"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          set -eu
+          echo "deploiement en cours"
+          sleep 4
+          echo "DEPLOIEMENT-OK"
+      when: not copie_ep4.stat.exists
+
+    # LA PANNE TRANSITOIRE. Ce script simule un service externe qui refuse la
+    # PREMIERE tentative avec le code 75 (EX_TEMPFAIL : reessayez plus tard),
+    # puis accepte. Il compte les tentatives dans le pipeline lui-meme, par
+    # l API et le jeton du job : aucun etat n est garde ailleurs.
+    - name: Le script du service externe capricieux
+      ansible.builtin.copy:
+        dest: "{{ depot }}/qa/sync-externe.sh"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          set -eu
+          URL="$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/jobs?include_retried=true&per_page=100"
+          NB=$(wget -qO- --header "JOB-TOKEN: $CI_JOB_TOKEN" "$URL" | grep -o "\"name\":\"sync-externe\"" | wc -l)
+          echo "tentative numero $NB"
+          if [ "$NB" -lt 2 ]; then
+            echo "service externe indisponible, reessayez plus tard"
+            exit 75
+          fi
+          echo "SYNC-OK"
+      when: not copie_ep4.stat.exists
+
+    # Le generateur du pipeline enfant : il ecrit un fichier que personne ne
+    # lit encore.
+    - name: Le generateur du pipeline enfant
+      ansible.builtin.copy:
+        dest: "{{ depot }}/qa/generate-child.sh"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          set -eu
+          cat > child-pipeline.yml <<EOF
+          stages:
+            - verify
+          enfant-genere:
+            stage: verify
+            image: {{ image_alpine }}
+            script:
+              - echo "ENFANT-GENERE sur $CI_COMMIT_SHORT_SHA"
+          EOF
+          cat child-pipeline.yml
+      when: not copie_ep4.stat.exists
+
+    - name: Le pipeline enfant statique
+      ansible.builtin.copy:
+        dest: "{{ depot }}/child/static.yml"
+        mode: "0644"
+        content: |
+          stages:
+            - verify
+          enfant-statique:
+            stage: verify
+            image: {{ image_alpine }}
+            script:
+              - echo "ENFANT-STATIQUE"
+      when: not copie_ep4.stat.exists
+
+    # LE PIPELINE DE DEPART. Il est vert. Lisez-le comme un relecteur.
+    - name: Un pipeline qui marche, a moitie industrialise
+      ansible.builtin.copy:
+        dest: "{{ depot }}/.gitlab-ci.yml"
+        mode: "0644"
+        content: |
+          stages:
+            - lint
+            - test
+            - orchestrate
+            - deploy
+
+          lint-app:
+            stage: lint
+            image: {{ image_alpine }}
+            interruptible: true
+            before_script:
+              - echo "preparation de l environnement"
+              - chmod +x qa/*.sh
+            script:
+              - qa/lint.sh app
+
+          lint-docs:
+            stage: lint
+            image: {{ image_alpine }}
+            interruptible: true
+            before_script:
+              - echo "preparation de l environnement"
+              - chmod +x qa/*.sh
+            script:
+              - qa/lint.sh docs 25
+
+          lint-config:
+            stage: lint
+            image: {{ image_alpine }}
+            interruptible: true
+            before_script:
+              - echo "preparation de l environnement"
+              - chmod +x qa/*.sh
+            script:
+              - qa/lint.sh config
+
+          tester:
+            stage: test
+            image: {{ image_alpine }}
+            retry: 2
+            before_script:
+              - chmod +x qa/*.sh
+            script:
+              - for s in unit api contract; do qa/suite.sh $s; done
+            artifacts:
+              when: always
+              paths:
+                - reports/
+
+          generer-enfant:
+            stage: orchestrate
+            image: {{ image_alpine }}
+            before_script:
+              - chmod +x qa/*.sh
+            script:
+              - qa/generate-child.sh
+
+          declencher-enfant:
+            stage: orchestrate
+            trigger:
+              include: child/static.yml
+              strategy: depend
+
+          deployer:
+            stage: deploy
+            image: {{ image_alpine }}
+            environment:
+              name: production
+            retry: 2
+            before_script:
+              - chmod +x qa/*.sh
+            script:
+              - qa/deploy.sh
+
+          sync-externe:
+            stage: deploy
+            image: {{ image_alpine }}
+            retry: 2
+            before_script:
+              - chmod +x qa/*.sh
+            script:
+              - qa/sync-externe.sh
+      when: not copie_ep4.stat.exists
+
+    - name: Pousser le pipeline dans la forge
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        AUTH="oauth2:$JETON"
+        git config user.email "formateur@dsoxlab.local"
+        git config user.name "Formateur"
+        git add -A
+        git diff --cached --quiet || git commit -q -m "feat: pipeline de depart"
+        git push -q "http://$AUTH@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      when: not copie_ep4.stat.exists
+      changed_when: true
+      no_log: true
+
+    # Le pipeline de depart doit etre TERMINE avant de rendre la main : sinon
+    # la mesure qui suit lirait un etat transitoire. On attend le pipeline du
+    # DERNIER commit de main, pas le dernier pipeline venu.
+    - name: Attendre le pipeline du dernier commit de main
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+        test -n "$SHA"
+        ETAT=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1" | jq -r '.[0].status // "aucun"')
+        echo "$ETAT"
+        case "$ETAT" in
+          success|failed|canceled|skipped|manual) exit 0 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: pipeline_depart
+      until: pipeline_depart.rc == 0
+      retries: 40
+      delay: 10
+      changed_when: false
+      when: not copie_ep4.stat.exists
+
+    # LE SETUP MESURE SON PROPRE ETAT DE DEPART, dans la forge et non dans ses
+    # fichiers : le pipeline est vert, il porte la tentative de trop du service
+    # externe (une relance reussie), et aucun verrou de deploiement n existe.
+    - block:
+        - name: Mesurer l etat de depart
+          ansible.builtin.shell: |
+            set -o pipefail
+            DIAG="/var/tmp/gl-ep4-diagnostic-depart.txt"
+            : > "$DIAG"
+            chmod 0644 "$DIAG"
+            echec() { echo "$*" >> "$DIAG"; exit 1; }
+            JETON=$(cat /etc/dsoxlab/jeton-api)
+            API="$URL/api/v4"
+            H="PRIVATE-TOKEN: $JETON"
+            ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+            test -n "$ID" || echec "projet introuvable"
+            SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+            PL=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1" | jq -r '.[0].id // empty')
+            test -n "$PL" || echec "aucun pipeline sur le SHA de main ($SHA)"
+            ETAT_PL=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL" | jq -r .status)
+            if [ "$ETAT_PL" != "success" ]; then
+              echo "le pipeline de depart est $ETAT_PL : il devrait etre vert" >> "$DIAG"
+              curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL/jobs" | jq -r '.[] | "  \(.name) \(.status)"' >> "$DIAG"
+              exit 1
+            fi
+            NB=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL/jobs?per_page=100" | jq 'length')
+            test "$NB" = "7" || echec "le pipeline de depart porte $NB job(s) au lieu de 7"
+            RETRIED=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL/jobs?per_page=100&include_retried=true" \
+              | jq '[.[] | select(.name == "sync-externe")] | length')
+            test "$RETRIED" = "2" || echec "sync-externe : $RETRIED tentative(s) au lieu de 2"
+            C=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" "$API/projects/$ID/resource_groups")
+            test "$C" = "200" || echec "resource_groups : HTTP $C (200 attendu)"
+            G=$(curl -sS --header "$H" "$API/projects/$ID/resource_groups" | jq 'length')
+            test "$G" = "0" || echec "un verrou de deploiement existe deja"
+            echo "etat de depart : pipeline $PL vert, cinq defauts en place"
+          args:
+            executable: /bin/bash
+          environment:
+            PROJET: "{{ projet }}"
+            URL: "{{ gitlab_url }}"
+          changed_when: false
+          no_log: true
+      rescue:
+        - name: Lire le diagnostic de l etat de depart
+          ansible.builtin.command: cat /var/tmp/gl-ep4-diagnostic-depart.txt
+          register: diagnostic
+          changed_when: false
+          failed_when: false
+        - name: La cause de l echec de la mesure
+          ansible.builtin.fail:
+            msg: "{{ diagnostic.stdout_lines | default(['fichier de diagnostic absent']) }}"
+      when: not copie_ep4.stat.exists
+
+    - name: Les faits de la situation
+      ansible.builtin.copy:
+        dest: "{{ travail }}/NOTE-REVUE.txt"
+        mode: "0644"
+        content: |
+          Ce que la situation vous donne deja.
+
+          Le projet pipeline-craft porte un pipeline vert, ecrit vite par un
+          collegue. Les jobs ne lancent que de petits scripts de qa/ : on
+          regarde la structure du pipeline, pas une application.
+
+          Tout ce qui est note est lisible par l API de la forge : la
+          configuration telle que GitLab la compile (ci/lint), les jobs, les
+          rapports, les pipelines enfants et les verrous de deploiement.
+
+          Un jeton personnel de la VM, root, est lisible dans
+          /etc/dsoxlab/jeton-api : il sert a appeler l API depuis la machine
+          sans jamais l ecrire sur une ligne de commande.
+
+          Une seule regle : le dernier pipeline de main doit rester vert.

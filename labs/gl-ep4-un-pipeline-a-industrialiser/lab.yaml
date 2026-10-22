@@ -1,0 +1,36 @@
+# Épreuve de fin de niveau c3. Les champs marqués REQUIS sont exigés par le
+# validator : sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-ep4-un-pipeline-a-industrialiser            # REQUIS
+title: "Level exam: a pipeline to industrialise"          # REQUIS
+level: c3                     # REQUIS
+# `challenge` et non `lab` : une epreuve se passe sans pas a pas et sans
+# indice. Contrairement a gl-19, qui CONSTRUIT depuis une specification avec
+# des indices payants, celle-ci fait DIAGNOSTIQUER un existant : les defauts
+# ne sont pas nommes, et c est le sujet.
+lab_type: challenge
+difficulty: advanced
+description: "The pipeline is green, yet it was only half industrialised: the same boilerplate is copied three times, the tests run one after the other in a single job, a child pipeline is generated but never used, retries replay every failure and the deployment has no lock and no time limit. Five defects, none of them named. Industrialise it, graded on the state the forge reports through its API. No Premium feature is needed."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - include
+  - matrix
+  - parent-child-pipelines
+  - reliability
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/   # REQUIS, http(s)
+estimated_time: 70m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-meme sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecte.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
