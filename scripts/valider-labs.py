@@ -104,6 +104,33 @@ def _dsoxlab(*args: str, timeout: int = 900) -> subprocess.CompletedProcess[str]
     )
 
 
+# Les marqueurs d'une machine qui ne repond pas, tels qu'Ansible et ssh les
+# ecrivent. La detection est TEXTUELLE, et c'est un pis-aller assume : `run`
+# sort en 2 aussi bien pour un setup casse que pour un hote injoignable, donc
+# le code de sortie ne permet pas de trancher.
+#
+# Mesure le 2026-10-22 : la VM du catalogue etait eteinte, les trois setups ont
+# echoue en onze secondes sur « Failed to connect to the host via ssh: No route
+# to host », et trois ROUGE ont ete inscrits avec des scores `None`. Un releve
+# qui porte un ROUGE produit par une forge absente est pire qu'un releve
+# absent, parce qu'il se lit comme une mesure.
+_INJOIGNABLE = (
+    "no route to host",
+    "failed to connect to the host via ssh",
+    "unreachable=1",
+    "connection timed out",
+    "connection refused",
+    "name or service not known",
+    "host key verification failed",
+)
+
+
+def machine_injoignable(sortie: str) -> bool:
+    """Vrai si la sortie dit que l'HOTE n'a pas repondu, pas que le lab est faux."""
+    bas = sortie.lower()
+    return any(marqueur in bas for marqueur in _INJOIGNABLE)
+
+
 def _check(identifiant: str) -> dict:
     """Le `check` du lab, lu dans le CONTRAT et non dans l'encadré du terminal.
 
@@ -215,6 +242,20 @@ def valider(identifiant: str, lab: Path) -> Verdict:
 
         pose = _dsoxlab("run", identifiant)
         if pose.returncode != 0:
+            sortie = (pose.stderr or "") + (pose.stdout or "")
+            if machine_injoignable(sortie):
+                # La forge ne répond pas : ce n'est PAS un défaut du lab, et
+                # l'inscrire en ROUGE serait mesurer sa propre panne. Même
+                # règle que `_check` plus bas, et mêmes trois issues que
+                # `dsoxlab doctor --strict`, où 9 se répare et 10 se remesure.
+                v.verdict = verdict_check.SKIP
+                v.pourquoi = (
+                    "la machine du lab ne répond pas : rien n'a été mesuré. "
+                    "Vérifier qu'elle est allumée (`virsh list --all`) et "
+                    "qu'elle répond (`dsoxlab infra status`), puis rejouer. "
+                    f"Sortie : {sortie.strip()[-200:]}"
+                )
+                return v
             v.verdict = "ROUGE"
             v.pourquoi = f"`run` a échoué : {(pose.stderr or pose.stdout)[-300:]}"
             return v
