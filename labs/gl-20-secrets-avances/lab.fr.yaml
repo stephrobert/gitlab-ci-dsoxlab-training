@@ -1,0 +1,2 @@
+title: Des secrets qui se renouvellent sans casser le pipeline
+description: "Un pipeline vert utilise un jeton de service ni protégé ni masqué et réécrit une clé SSH à la main. Protégez et masquez le jeton, passez la clé en variable de type fichier en adaptant le job, puis renouvelez le jeton sans interrompre le service : le nouveau d'abord, prouvé par un pipeline, et seulement ensuite la révocation de l'ancien. Noté sur l'état que la forge porte : réglages des variables, jetons d'accès révoqués et actifs, jobs exécutés et journaux."

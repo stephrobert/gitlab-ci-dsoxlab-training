@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 11:07:09",
+  "genere_le": "2026-10-22 18:31:23",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -230,6 +230,58 @@
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
+    },
+    "gl-20-secrets-avances": {
+      "id": "gl-20-secrets-avances",
+      "chemin": "gl-20-secrets-avances",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 119.6,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "6a7f2f92bf0546b1cec2fb5b60edf463fa0fcaa898389556c289edbe1a5d4ed7"
+    },
+    "gl-21-activer-les-scanners": {
+      "id": "gl-21-activer-les-scanners",
+      "chemin": "gl-21-activer-les-scanners",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 206.5,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "60ba2b4876e4c6957fd612ae584c7b0aecda58da750e14ddbe72019991f77353"
+    },
+    "gl-22-scanner-les-images": {
+      "id": "gl-22-scanner-les-images",
+      "chemin": "gl-22-scanner-les-images",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 331.7,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "7609d58e09eebb22419af7e555f134fb9ce36960acc473696a22ad377f2e6e9b"
+    },
+    "gl-23-supply-chain-tracable": {
+      "id": "gl-23-supply-chain-tracable",
+      "chemin": "gl-23-supply-chain-tracable",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 494.1,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "d135038bd9ff5c9c424f3f4777a2d0bc26cd5c7991f7cd143473818d8772e144"
     },
     "gl-ep1-un-pipeline-qui-dit-vrai": {
       "id": "gl-ep1-un-pipeline-qui-dit-vrai",
