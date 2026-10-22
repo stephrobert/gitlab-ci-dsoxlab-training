@@ -41,6 +41,10 @@ def depot(tmp_path: Path) -> Path:
         "labs/_commun/gitlab.py",
         "scripts/valider-labs.py",
         "labs/gl-01/challenge/tests/test_functional.py",
+        "labs/gl-01/setup.yaml",
+        "labs/gl-01/cleanup.yaml",
+        "labs/gl-01/lab.yaml",
+        "labs/gl-01/README.md",
     ):
         chemin = tmp_path / relatif
         chemin.parent.mkdir(parents=True, exist_ok=True)
@@ -78,16 +82,29 @@ REFUSES = [
         "le releve et les deux",
         ["validation-labs.json", "labs/_commun/gitlab.py", "scripts/valider-labs.py"],
     ),
+    # Ces quatre cas etaient ACCEPTES par la premiere version du hook, qui
+    # jugeait legitime de corriger un lab et de reinscrire son verdict d'un
+    # seul geste. C'est precisement le cas qu'aucune mesure ne rattrape apres
+    # un squash : le commit unique porte la correction ET le verdict, et rien
+    # ne dit lequel est venu avant.
+    (
+        "le releve et le test d'un lab",
+        ["validation-labs.json", "labs/gl-01/challenge/tests/test_functional.py"],
+    ),
+    ("le releve et un setup", ["validation-labs.json", "labs/gl-01/setup.yaml"]),
+    ("le releve et un cleanup", ["validation-labs.json", "labs/gl-01/cleanup.yaml"]),
+    ("le releve et un lab.yaml", ["validation-labs.json", "labs/gl-01/lab.yaml"]),
 ]
 
 ACCEPTES = [
     ("le releve seul", ["validation-labs.json"]),
     ("le commun seul", ["labs/_commun/gitlab.py"]),
     ("l'outillage seul", ["scripts/valider-labs.py"]),
-    (
-        "le releve et UN lab corrige",
-        ["validation-labs.json", "labs/gl-01/challenge/tests/test_functional.py"],
-    ),
+    ("le test d'un lab seul", ["labs/gl-01/challenge/tests/test_functional.py"]),
+    # L'enonce n'est pas joue par le cycle : l'interdire obligerait a une
+    # campagne pour une coquille d'orthographe, et un garde-fou qui refuse
+    # aussi les commits legitimes se contourne au bout de deux jours.
+    ("le releve et un enonce", ["validation-labs.json", "labs/gl-01/README.md"]),
     ("rien du tout", []),
 ]
 
