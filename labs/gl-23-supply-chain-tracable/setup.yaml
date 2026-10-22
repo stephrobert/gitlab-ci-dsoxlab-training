@@ -1,0 +1,557 @@
+---
+# Joue par `dsoxlab run` : il pose un pipeline qui PUBLIE son image, sans la
+# decrire (pas de SBOM), sans la signer, sans attester d ou elle vient et sans
+# jamais verifier quoi que ce soit avant le deploiement. Il pose aussi la paire
+# de cles de signature, et une image `tiers` que personne n a signee.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : apres les labs precedents, il ne reinstalle rien.
+#
+# ECRITURE : ce fichier ne contient AUCUNE apostrophe isolee, et aucune
+# longueur de variable shell du genre dollar-accolade-diese. Les deux font
+# refuser le playbook au chargement (voir _commun/depot.yaml).
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-23-supply-chain-tracable
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    registre: "gitlab-1.lab:5050"
+    travail: "/opt/dsoxlab/gl-23"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+    # La paire de cles vit HORS de la copie de travail, et hors du depot :
+    # la cle privee ne doit pas etre a portee d un git add. Le repertoire est
+    # lisible (les tests y lisent la cle PUBLIQUE), la cle privee est en 0600.
+    cles: "/var/lib/dsoxlab/gl-23-cles"
+    # cosign sur la VM : il sert a generer la paire, et aux tests, qui
+    # verifient la signature EUX-MEMES plutot que de croire un journal de job.
+    # Meme version que la lecon, qui l installe depuis la release officielle.
+    cosign_version: "3.1.3"
+    # Image Alpine pour fabriquer l image `tiers` avec crane. Reference prise
+    # dans la lecon supply-chain.mdx (alpine 3.24.2, digest releve par elle) ;
+    # je n ai pas pu l interroger depuis l endroit ou ce fichier a ete ecrit :
+    # A REJOUER SUR L INSTANCE.
+    alpine_image: "alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
+
+  tasks:
+    # `starter/lab-09` construit ET publie l image : c est le point de depart
+    # voulu, comme pour gl-22. Le dernier commit du setup republie sous un tag
+    # propre, sans latest, plus bas.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-09"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true
+
+    # Le depot amont publie un tag `latest` et passe le mot de passe sur la
+    # ligne de commande : ce que ce catalogue refuse (un tag propre au commit,
+    # un mot de passe lu sur l entree standard). Meme regexp que gl-09 et
+    # gl-22, eprouvee. Elle est idempotente : une fois remplacee, elle
+    # retombe sur le meme texte.
+    - name: Le job de construction publie l image, sans latest
+      ansible.builtin.replace:
+        path: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        regexp: '(?m)^(    )- docker build -t \$CI_REGISTRY_IMAGE.*\n(?:^    - docker (?:build|login|push).*\n)*'
+        replace: |
+          \1- docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA .
+          \1- echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+          \1- docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+      register: job_pose
+
+    # Les images du premier pipeline (celle du depot amont et son latest)
+    # partent AVANT la nouvelle publication. Ce sont les TAGS qu on retire,
+    # pas les depots : la suppression d un depot est asynchrone.
+    - name: Retirer les images du premier pipeline
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        for DEPOT in $(curl -sS --header "$H" \
+          "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+          for TAG in $(curl -sS --header "$H" \
+            "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+            | jq -r '.[]?.name'); do
+            curl -sS --header "$H" --request DELETE \
+              "$API/projects/$ID/registry/repositories/$DEPOT/tags/$TAG" >/dev/null
+          done
+        done
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: true
+      when: job_pose is changed
+
+    # ---- cosign sur la VM -------------------------------------------------
+    - name: cosign est-il installe a la bonne version ?
+      ansible.builtin.shell: cosign version 2>&1 | grep -q "v$COSIGN_VERSION"
+      args:
+        executable: /bin/bash
+      environment:
+        COSIGN_VERSION: "{{ cosign_version }}"
+      register: cosign_present
+      changed_when: false
+      failed_when: false
+
+    # Installation comme dans la lecon : binaire de la release officielle,
+    # empreinte verifiee contre cosign_checksums.txt. La VM doit atteindre
+    # github.com ; le lab le dit dans son README.
+    - name: Installer cosign depuis la release officielle
+      ansible.builtin.shell: |
+        set -o pipefail
+        REP=$(mktemp -d)
+        cd "$REP"
+        BASE="https://github.com/sigstore/cosign/releases/download/v${COSIGN_VERSION}"
+        curl -sSfLO "${BASE}/cosign-linux-amd64"
+        curl -sSfLO "${BASE}/cosign_checksums.txt"
+        grep " cosign-linux-amd64$" cosign_checksums.txt | sha256sum -c -
+        install -m 0755 cosign-linux-amd64 /usr/local/bin/cosign
+        cd /
+        rm -rf "$REP"
+      args:
+        executable: /bin/bash
+      environment:
+        COSIGN_VERSION: "{{ cosign_version }}"
+      changed_when: true
+      when: cosign_present.rc != 0
+
+    # ---- la paire de cles de signature ------------------------------------
+    - name: Repertoire de la paire de cles
+      ansible.builtin.file:
+        path: "{{ cles }}"
+        state: directory
+        mode: "0755"
+
+    # Le mot de passe est ecrit SANS retour a la ligne : GitLab refuse de
+    # masquer une variable qui en porte un.
+    - name: Generer la paire de cles, une seule fois
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$CLES"
+        if test -s cosign.key && test -s cosign.pub && test -s mot-de-passe; then
+          echo "paire deja presente"
+          exit 0
+        fi
+        rm -f cosign.key cosign.pub mot-de-passe
+        printf "%s" "$(openssl rand -hex 16)" > mot-de-passe
+        chmod 0600 mot-de-passe
+        COSIGN_PASSWORD="$(cat mot-de-passe)" cosign generate-key-pair
+        chmod 0600 cosign.key
+        chmod 0644 cosign.pub
+        echo "paire generee"
+      args:
+        executable: /bin/bash
+      environment:
+        CLES: "{{ cles }}"
+      register: paire
+      changed_when: paire.stdout is search("generee")
+
+    # LA CLE PRIVEE EST UNE VARIABLE DU PROJET, pas un fichier du depot, et ce
+    # choix est celui de la lecon. cosign sait signer sans cle (keyless) mais
+    # il lui faut alors un Fulcio qui reconnaisse l emetteur du jeton : une
+    # instance auto-hebergee n y figure pas, et le lab exigerait un service
+    # public. Une paire de cles marche hors ligne.
+    #
+    # DEUX ECARTS A LA LECON, ET ILS SONT A VERIFIER SUR L INSTANCE. La cle
+    # privee est multi-ligne : GitLab ne sait pas masquer une valeur qui porte
+    # un retour a la ligne, seul le mot de passe est masque. Et la variable
+    # n est PAS protegee : la branche main de cette instance ne semble pas
+    # protegee (le setup y pousse en force), or une variable protegee n est
+    # exposee qu aux pipelines des branches protegees.
+    - name: Poser les variables de signature dans le projet
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4/projects/root%2F$PROJET/variables"
+        H="PRIVATE-TOKEN: $JETON"
+        poser() {
+          NOM="$1"
+          MASQUE="$2"
+          FICHIER="$3"
+          CODE=$(curl -sS -o /tmp/gl23-var.json -w "%{http_code}" --header "$H" \
+            --request PUT \
+            --data-urlencode "value@$FICHIER" \
+            --data "masked=$MASQUE" --data "protected=false" \
+            --data "variable_type=env_var" --data "raw=true" \
+            "$API/$NOM")
+          if [ "$CODE" = "404" ]; then
+            CODE=$(curl -sS -o /tmp/gl23-var.json -w "%{http_code}" --header "$H" \
+              --request POST \
+              --data "key=$NOM" \
+              --data-urlencode "value@$FICHIER" \
+              --data "masked=$MASQUE" --data "protected=false" \
+              --data "variable_type=env_var" --data "raw=true" \
+              "$API")
+          fi
+          case "$CODE" in
+            200|201) echo "variable $NOM posee" ;;
+            *) echo "variable $NOM refusee : HTTP $CODE"; head -c 300 /tmp/gl23-var.json; exit 1 ;;
+          esac
+        }
+        poser COSIGN_PRIVATE_KEY false "$CLES/cosign.key"
+        poser COSIGN_KEY_PASSWORD true "$CLES/mot-de-passe"
+        rm -f /tmp/gl23-var.json
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+        CLES: "{{ cles }}"
+      changed_when: true
+
+    # La cle PUBLIQUE se versionne dans le depot : c est elle qui permet de
+    # verifier, et elle n a rien de secret.
+    - name: La cle publique rejoint le depot
+      ansible.builtin.copy:
+        src: "{{ cles }}/cosign.pub"
+        dest: "{{ travail }}/{{ projet }}/cosign.pub"
+        remote_src: true
+        mode: "0644"
+      register: pub_posee
+
+    # Deux petits scripts, ecrits ici parce qu ils servent a la fois au setup
+    # et aux tests, qui n ont pas le droit de dupliquer la logique. Le premier
+    # lance cosign avec l authentification du registre (une config Docker
+    # jetable, fabriquee depuis le jeton de la VM : il ne passe jamais par une
+    # ligne de commande). Le second tourne DANS un conteneur Alpine.
+    - name: Le script qui lance cosign contre le registre du lab
+      ansible.builtin.copy:
+        dest: "{{ cles }}/cosign-registre.sh"
+        mode: "0755"
+        content: |
+          #!/bin/bash
+          # Usage : cosign-registre.sh <arguments de cosign>
+          set -u
+          CONF=$(mktemp -d)
+          JETON=$(cat /etc/dsoxlab/jeton-api)
+          AUTH=$(printf "%s:%s" root "$JETON" | base64 -w0)
+          jq -n --arg r "gitlab-1.lab:5050" --arg a "$AUTH" '{auths: {($r): {auth: $a} } }' > "$CONF/config.json"
+          DOCKER_CONFIG="$CONF" cosign "$@"
+          CODE=$?
+          rm -rf "$CONF"
+          exit "$CODE"
+
+    - name: Le script qui fabrique l image tiers
+      ansible.builtin.copy:
+        dest: "{{ cles }}/creer-tiers.sh"
+        mode: "0755"
+        content: |
+          #!/bin/sh
+          # Lance dans un conteneur Alpine. Le jeton arrive sur l entree standard.
+          set -eu
+          apk add --no-cache crane >/dev/null
+          crane auth login "$REGISTRE" -u root --password-stdin
+          crane mutate --insecure --label dsoxlab.origine=tiers -t "$CIBLE" "$SOURCE"
+
+    - name: L etat de depart du depot est bien celui du scenario
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        if ! grep -q "docker push" .gitlab-ci.yml; then
+          echo "le job ne publie rien : le lab n aurait plus d objet"
+          exit 1
+        fi
+        if grep -q "latest" .gitlab-ci.yml; then
+          echo "un tag latest subsiste dans le pipeline"
+          exit 1
+        fi
+        if grep -qiE "syft|cosign|sbom" .gitlab-ci.yml; then
+          echo "le pipeline decrit ou signe deja son image : le lab n aurait plus d objet"
+          exit 1
+        fi
+        if test -e cosign.key; then
+          echo "une cle privee est dans le depot"
+          exit 1
+        fi
+        test -s cosign.pub
+        grep -n "docker " .gitlab-ci.yml
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      changed_when: false
+
+    # Le jeton est interpole par le shell DE LA VM. `noqa: no-handler` est
+    # delibere : un handler tournerait a la FIN du play, alors que les taches
+    # suivantes attendent le pipeline de ce commit.
+    - name: Pousser l etat de depart  # noqa: no-handler
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        git add -A
+        git diff --cached --quiet || git commit -q -m "chore: etat de depart du lab, image publiee et jamais signee"
+        git push -q --force "http://oauth2:$JETON@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      when: (job_pose is changed) or (pub_posee is changed)
+      changed_when: true
+      no_log: true
+
+    # `manual` COMPTE COMME UN ETAT TERMINAL : le deploiement de production
+    # est manuel, donc un pipeline sain finit `manual`, pas `success`.
+    - name: Attendre le pipeline du commit de depart
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        ID=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/root%2F$PROJET" | jq -r '.id // empty')
+        SHA=$(cd "$TRAVAIL/$PROJET" && git rev-parse HEAD)
+        LIGNE=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/$ID/pipelines?ref=main&per_page=10" \
+          | jq -r --arg sha "$SHA" '.[] | select(.sha == $sha) | .status' | head -1)
+        echo "${LIGNE:-aucun pipeline sur ce commit}"
+        case "$LIGNE" in
+          success|failed|canceled|skipped|manual) exit 0 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: etat_pipeline
+      until: etat_pipeline.rc == 0
+      retries: 60
+      delay: 15
+      changed_when: false
+
+    - name: L image est dans le registre, taguee par le commit
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        COURT=$(cd "$TRAVAIL/$PROJET" && git rev-parse --short=8 HEAD)
+        for DEPOT in $(curl -sS --header "$H" \
+          "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+          if curl -sS --header "$H" \
+            "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+            | jq -r '.[]?.name' | grep -q "^$COURT$"; then
+            echo "image publiee sous le tag $COURT"
+            exit 0
+          fi
+        done
+        echo "aucun tag $COURT dans le registre : le pipeline de depart n a pas publie"
+        exit 1
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: image_publiee
+      until: image_publiee.rc == 0
+      retries: 10
+      delay: 6
+      changed_when: false
+
+    # ---- l image que personne n a signee ------------------------------------
+    # Elle est fabriquee a partir de l image du projet, avec une etiquette de
+    # plus : meme contenu, AUTRE digest. Une signature se pose sur un digest,
+    # pas sur un tag : un simple second tag de la meme image serait donc deja
+    # signe des que l image du commit l est.
+    - name: L image tiers existe-t-elle deja ?
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        for DEPOT in $(curl -sS --header "$H" \
+          "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+          if curl -sS --header "$H" \
+            "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+            | jq -e '[.[]?.name] | index("tiers")' >/dev/null; then
+            exit 0
+          fi
+        done
+        exit 1
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: tiers_present
+      changed_when: false
+      failed_when: false
+
+    - name: Pousser l image tiers dans le registre
+      ansible.builtin.shell: |
+        set -o pipefail
+        command -v docker >/dev/null || { echo "docker est absent de la VM"; exit 1; }
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        COURT=$(cd "$TRAVAIL/$PROJET" && git rev-parse --short=8 HEAD)
+        printf "%s" "$JETON" | docker run --rm -i \
+          -v "$CLES/creer-tiers.sh:/creer-tiers.sh:ro" \
+          -e REGISTRE="$REGISTRE" \
+          -e SOURCE="$REGISTRE/root/$PROJET:$COURT" \
+          -e CIBLE="$REGISTRE/root/$PROJET:tiers" \
+          "$ALPINE" sh /creer-tiers.sh
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+        CLES: "{{ cles }}"
+        REGISTRE: "{{ registre }}"
+        ALPINE: "{{ alpine_image }}"
+      changed_when: true
+      when: tiers_present.rc != 0
+
+    # LE SETUP MESURE SON PROPRE ETAT DE DEPART : l image du commit comme
+    # l image tiers doivent etre non signees, et pour la BONNE raison. Un
+    # echec de verification qui vient d un registre injoignable ou d une option
+    # inconnue ressemble a une absence de signature, et ferait un lab dont
+    # l etat de depart est faux. Les variables du projet sont relues dans la
+    # forge, pas supposees.
+    - name: Mesurer l etat de depart
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        for NOM in COSIGN_PRIVATE_KEY COSIGN_KEY_PASSWORD; do
+          if ! curl -sS --header "$H" "$API/projects/$ID/variables" \
+            | jq -e --arg n "$NOM" 'map(.key) | index($n)' >/dev/null; then
+            echo "la variable $NOM manque dans le projet"
+            exit 1
+          fi
+        done
+        digest() {
+          for DEPOT in $(curl -sS --header "$H" \
+            "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+            D=$(curl -sS --header "$H" \
+              "$API/projects/$ID/registry/repositories/$DEPOT/tags/$1" | jq -r '.digest // empty')
+            if [ -n "$D" ]; then
+              echo "$D"
+              return 0
+            fi
+          done
+          return 1
+        }
+        COURT=$(cd "$TRAVAIL/$PROJET" && git rev-parse --short=8 HEAD)
+        DC=$(digest "$COURT")
+        DT=$(digest tiers)
+        test -n "$DC" && test -n "$DT"
+        if [ "$DC" = "$DT" ]; then
+          echo "l image tiers a le meme digest que l image du commit : elle serait signee avec elle"
+          exit 1
+        fi
+        for REF in "$REGISTRE/root/$PROJET@$DC" "$REGISTRE/root/$PROJET@$DT"; do
+          echo "verification de $REF"
+          if "$CLES/cosign-registre.sh" verify --key "$CLES/cosign.pub" \
+            --insecure-ignore-tlog=true --allow-insecure-registry "$REF" \
+            >/tmp/gl23-v.out 2>/tmp/gl23-v.err; then
+            echo "  elle est deja signee : le lab n aurait plus d objet"
+            exit 1
+          fi
+          if ! grep -qiE "no (matching )?signatures" /tmp/gl23-v.err; then
+            echo "  echec, mais pas faute de signature :"
+            tail -n 8 /tmp/gl23-v.err
+            exit 1
+          fi
+          echo "  non signee, comme annonce"
+        done
+        rm -f /tmp/gl23-v.out /tmp/gl23-v.err
+        echo "DIGEST-TIERS=$DT"
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+        CLES: "{{ cles }}"
+        REGISTRE: "{{ registre }}"
+      register: mesure
+      changed_when: false
+
+    - name: Retenir le digest de l image tiers
+      ansible.builtin.set_fact:
+        digest_tiers: "{{ mesure.stdout_lines | select('match', '^DIGEST-TIERS=') | first | regex_replace('^DIGEST-TIERS=', '') }}"
+
+    # CETTE NOTE EST LUE PAR LES TESTS (lignes `IMAGE-TIERS:` et
+    # `DIGEST-TIERS:`), le reste est pour l apprenant.
+    - name: Les faits de la situation
+      ansible.builtin.copy:
+        dest: "{{ travail }}/NOTE-SUPPLY-CHAIN.txt"
+        mode: "0644"
+        content: |
+          Ce que la situation vous donne deja.
+
+          IMAGE-TIERS: {{ registre }}/root/{{ projet }}:tiers
+          DIGEST-TIERS: {{ digest_tiers }}
+
+          L image `tiers` a ete poussee dans le registre de ce projet par une
+          autre equipe. Personne ne l a signee. C est l image que votre
+          verification doit REFUSER.
+
+          La paire de cles de signature est generee. Vous n avez pas a la
+          creer :
+
+            - la cle PRIVEE (chiffree) est la variable COSIGN_PRIVATE_KEY du
+              projet, son mot de passe la variable COSIGN_KEY_PASSWORD
+              (masquee). Elles ne sont jamais ecrites dans le depot ;
+            - la cle PUBLIQUE est le fichier cosign.pub, a la racine du
+              depot : c est celle qui sert a verifier.
+
+          Outils et versions de la lecon : Syft 1.54.1, cosign 3.1.3.
+
+    - name: Rappeler la contrainte du registre du lab
+      ansible.builtin.copy:
+        dest: "{{ travail }}/REGISTRE-DU-LAB.txt"
+        mode: "0644"
+        content: |
+          Le registre de cette forge repond en HTTP, pas en HTTPS.
+
+          Le job qui CONSTRUIT l image y reussit : le service Docker du job
+          est deja lance avec le registre declare non securise.
+
+          Les outils de ce lab ne passent PAS par ce service Docker, ils
+          interrogent le registre eux-memes, et chacun a sa maniere de
+          l autoriser a parler HTTP :
+
+            - cosign : option --allow-http-registry, a donner a chaque
+              commande (sign, attest, verify, verify-attestation). Mesure
+              sur cosign 3.1.3 : --allow-insecure-registry (certificats
+              TLS laxistes) ne suffit PAS pour sign et attest, qui tentent
+              HTTPS et echouent sur "server gave HTTP response to HTTPS
+              client". La liste des options de registre est dans
+              `cosign sign --help` ;
+            - crane (qui sert a lire le digest d une image) : option
+              --insecure ;
+            - Syft : variable SYFT_REGISTRY_INSECURE_USE_HTTP=true.
+
+          Le projet est prive : chaque outil doit s authentifier. Les
+          variables CI_REGISTRY_USER et CI_REGISTRY_PASSWORD de GitLab
+          portent les identifiants ; cosign login et crane auth login les
+          rangent pour la suite du job.
+
+          Les images de Syft et de cosign ne contiennent aucun shell : GitLab
+          ne peut pas y lancer le script d un job. On part d une Alpine et
+          on installe l outil depuis sa release officielle, en verifiant son
+          empreinte (la lecon montre comment). Les jobs ont donc besoin
+          d atteindre github.com.
+
+          Ce n est pas une particularite du lab : un registre interne en HTTP
+          impose la meme chose en entreprise. En production, on sert le
+          registre en HTTPS et ces options disparaissent.

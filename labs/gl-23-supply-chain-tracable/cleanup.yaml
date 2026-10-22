@@ -1,0 +1,26 @@
+---
+# Joue par `dsoxlab clean` et `dsoxlab reset` : il remet la situation du
+# scenario, pour que le lab se rejoue a l identique. L essentiel vit dans
+# `_commun/nettoyer.yaml` : les images du registre partent d abord (GitLab
+# refuse de supprimer un projet qui en porte, et l image tiers en est une),
+# puis le projet, qui emporte ses variables et donc la cle privee, puis la copie
+# de travail et ses notes. La paire de cles est supprimee a part : elle vit hors
+# du depot. cosign reste installe sur la VM, ce n est pas un etat du lab.
+- name: Nettoyer le lab gl-23-supply-chain-tracable
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-23"
+    cles: "/var/lib/dsoxlab/gl-23-cles"
+
+  tasks:
+    - name: Le projet et la copie de travail partent
+      ansible.builtin.include_tasks: ../_commun/nettoyer.yaml
+
+    - name: La paire de cles et les scripts du lab partent
+      ansible.builtin.file:
+        path: "{{ cles }}"
+        state: absent

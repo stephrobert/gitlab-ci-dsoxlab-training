@@ -1,0 +1,395 @@
+---
+# Joue par `dsoxlab run` : il pose un pipeline qui PUBLIE son image, sans la
+# scanner jamais, et une image qui porte une vulnerabilite critique REELLE.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : apres les labs precedents, il ne reinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-22-scanner-les-images
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    registre: "gitlab-1.lab:5050"
+    travail: "/opt/dsoxlab/gl-22"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+    # L image de Trivy, epinglee par digest (releve sur la VM le 2026-10-22,
+    # apres `docker pull`). A reporter dans le scenario et la solution.
+    trivy_image: "aquasec/trivy:0.58.1@sha256:ab70a02200597efa04748f210f793936eb647cbcdb0ea69cc30b226d6f5a22c7"
+    cache_trivy: "/var/cache/dsoxlab-trivy"
+    # LES BASES SE TESTENT DANS L ORDRE, et la premiere qui porte au moins une
+    # vulnerabilite CRITIQUE gagne. Une base de vulnerabilites bouge tous les
+    # jours : une image qui en portait hier peut ne plus en porter demain,
+    # lorsque la distribution corrige ou reclasse. Le setup MESURE donc, il ne
+    # suppose pas. Le jour ou aucune de ces bases n est plus critique, il
+    # s arrete avec un message qui le dit : il faut alors ajouter ici une base
+    # plus ancienne, jamais affaiblir le test.
+    bases_candidates:
+      - "python:3.12.0-slim-bullseye"
+      - "python:3.11.4-slim-bullseye"
+      - "python:3.12.0-bullseye"
+      - "python:3.11.4-bullseye"
+    # Le finding que l equipe securite a trie. On prefere un cas CONNU pour
+    # etre un vrai faux positif : CVE-2023-45853 vise MiniZip, que le paquet
+    # zlib1g de Debian ne contient pas, mais que Trivy rapporte quand meme
+    # parce que le paquet SOURCE s appelle zlib. Si la base n est pas touchee,
+    # on retombe sur le premier identifiant critique, avec une raison generique.
+    cve_preferee: "CVE-2023-45853"
+
+  tasks:
+    # `starter/lab-09` construit ET publie l image : c est le point de depart
+    # voulu ici, contrairement a gl-09 qui le defait. Le setup le nettoie
+    # pourtant, plus bas : il publie aussi un tag `latest`, que ce catalogue
+    # ne veut pas.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-09"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true
+
+    - name: Le cache de Trivy survit d un passage a l autre
+      ansible.builtin.file:
+        path: "{{ cache_trivy }}"
+        state: directory
+        mode: "0755"
+
+    - name: La base de l image est-elle encore celle du depot amont ?
+      ansible.builtin.command: grep -q '^FROM python:3.12-slim' "{{ travail }}/{{ projet }}/Dockerfile"
+      register: a_ramener
+      changed_when: false
+      failed_when: false
+
+    # LE DEFAUT EST UNE IMAGE DE BASE VOLONTAIREMENT ANCIENNE, et c est plus
+    # honnete qu une faille simulee : le rapport que l apprenant lira est un
+    # vrai rapport Trivy, avec de vrais identifiants.
+    - name: Choisir une base qui porte une vulnerabilite critique
+      ansible.builtin.shell: |
+        set -o pipefail
+        command -v docker >/dev/null || { echo "docker est absent de la VM"; exit 1; }
+        IMPOSSIBLES=0
+        for BASE in $BASES; do
+          echo "base candidate : $BASE"
+          if ! docker run --rm -v "$CACHE:/root/.cache/trivy" "$TRIVY" image \
+            --quiet --format json --severity CRITICAL "$BASE" \
+            >/tmp/gl22-base.json 2>/tmp/gl22-base.err; then
+            echo "  scan impossible :"
+            tail -n 5 /tmp/gl22-base.err
+            IMPOSSIBLES=$((IMPOSSIBLES + 1))
+            continue
+          fi
+          N=$(jq '[.Results[]?.Vulnerabilities[]?] | length' /tmp/gl22-base.json)
+          echo "  $N vulnerabilite(s) critique(s)"
+          if [ "$N" -ge 1 ]; then
+            echo "BASE-CHOISIE=$BASE"
+            exit 0
+          fi
+        done
+        if [ "$IMPOSSIBLES" -gt 0 ]; then
+          echo "$IMPOSSIBLES scan(s) impossible(s) : la VM atteint-elle Docker Hub et la base de Trivy ?"
+        else
+          echo "aucune base candidate ne porte plus de vulnerabilite critique :"
+          echo "la base de vulnerabilites a change. Ajouter une base plus ancienne a"
+          echo "bases_candidates dans setup.yaml, sans toucher aux tests."
+        fi
+        exit 1
+      args:
+        executable: /bin/bash
+      environment:
+        BASES: "{{ bases_candidates | join(' ') }}"
+        TRIVY: "{{ trivy_image }}"
+        CACHE: "{{ cache_trivy }}"
+      register: selection_base
+      changed_when: false
+      when: a_ramener.rc == 0
+
+    - name: Retenir la base choisie
+      ansible.builtin.set_fact:
+        base_vulnerable: "{{ selection_base.stdout_lines | select('match', '^BASE-CHOISIE=') | first | regex_replace('^BASE-CHOISIE=', '') }}"
+      when: a_ramener.rc == 0
+
+    # Les images du premier pipeline (celle du depot amont, saine, et son tag
+    # `latest`) partent AVANT la nouvelle publication. Ce sont les TAGS qu on
+    # retire, pas les depots : la suppression d un depot est asynchrone.
+    # Meme raison que pour gl-09 : un registre qui garde l ancien etat
+    # ferait lire au lab une image qui n est pas celle du commit.
+    - name: Retirer les images du premier pipeline
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        for DEPOT in $(curl -sS --header "$H" \
+          "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+          for TAG in $(curl -sS --header "$H" \
+            "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+            | jq -r '.[]?.name'); do
+            curl -sS --header "$H" --request DELETE \
+              "$API/projects/$ID/registry/repositories/$DEPOT/tags/$TAG" >/dev/null
+          done
+        done
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: true
+      when: a_ramener.rc == 0
+
+    - name: Poser la base ancienne dans les deux etapes du Dockerfile
+      ansible.builtin.replace:
+        path: "{{ travail }}/{{ projet }}/Dockerfile"
+        regexp: '(?m)^FROM python:3\.12-slim( AS builder)?[ \t]*$'
+        replace: 'FROM {{ base_vulnerable }}\1'
+      register: base_posee
+      when: a_ramener.rc == 0
+
+    # Le job de publication est reecrit proprement : une seule construction,
+    # un mot de passe qui ne passe pas sur la ligne de commande, et le seul
+    # tag du commit. Le depot amont publie aussi `latest` et utilise `-p`, ce
+    # que la regle de ce depot interdit. Meme regexp que gl-09, eprouvee.
+    - name: Le job de construction publie l image, sans latest
+      ansible.builtin.replace:
+        path: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        regexp: '(?m)^(    )- docker build -t \$CI_REGISTRY_IMAGE.*\n(?:^    - docker (?:build|login|push).*\n)*'
+        replace: |
+          \1- docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA .
+          \1- echo "$CI_REGISTRY_PASSWORD" | docker login "$CI_REGISTRY" -u "$CI_REGISTRY_USER" --password-stdin
+          \1- docker push $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA
+      register: job_pose
+
+    - name: L etat de depart du depot est bien celui du scenario
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        if ! grep -q 'docker push' .gitlab-ci.yml; then
+          echo "le job ne publie rien : le lab n aurait plus d objet"
+          exit 1
+        fi
+        if grep -q 'latest' .gitlab-ci.yml; then
+          echo "un tag latest subsiste dans le pipeline"
+          exit 1
+        fi
+        if grep -qi 'trivy' .gitlab-ci.yml; then
+          echo "le pipeline scanne deja : le lab n aurait plus d objet"
+          exit 1
+        fi
+        if test -e .trivyignore; then
+          echo "un .trivyignore existe deja : le lab n aurait plus d objet"
+          exit 1
+        fi
+        if grep -q '^FROM python:3.12-slim' Dockerfile; then
+          echo "le Dockerfile porte encore la base saine"
+          exit 1
+        fi
+        grep -n '^FROM' Dockerfile
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      changed_when: false
+
+    # Le jeton est interpole par le shell DE LA VM : il reste hors de la liste
+    # des processus et de toute trace d echec.
+    # `noqa: no-handler` est delibere : un handler tournerait a la FIN du play,
+    # alors que les taches suivantes attendent le pipeline de ce commit.
+    - name: Pousser l etat de depart  # noqa: no-handler
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        git add -A
+        git diff --cached --quiet || git commit -q -m "chore: etat de depart du lab, image publiee et jamais scannee"
+        git push -q --force "http://oauth2:$JETON@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      when: (job_pose is changed) or (base_posee is changed)
+      changed_when: true
+      no_log: true
+
+    # `manual` COMPTE COMME UN ETAT TERMINAL : le deploiement de production
+    # est manuel, donc un pipeline sain finit `manual`, pas `success`.
+    - name: Attendre le pipeline du commit de depart
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        ID=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/root%2F$PROJET" | jq -r '.id // empty')
+        SHA=$(cd "$TRAVAIL/$PROJET" && git rev-parse HEAD)
+        LIGNE=$(curl -sS --header "PRIVATE-TOKEN: $JETON" \
+          "$URL/api/v4/projects/$ID/pipelines?ref=main&per_page=10" \
+          | jq -r --arg sha "$SHA" '.[] | select(.sha == $sha) | .status' | head -1)
+        echo "${LIGNE:-aucun pipeline sur ce commit}"
+        case "$LIGNE" in
+          success|failed|canceled|skipped|manual) exit 0 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: etat_pipeline
+      until: etat_pipeline.rc == 0
+      retries: 60
+      delay: 15
+      changed_when: false
+
+    - name: L image est dans le registre, taguee par le commit
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        COURT=$(cd "$TRAVAIL/$PROJET" && git rev-parse --short=8 HEAD)
+        for DEPOT in $(curl -sS --header "$H" \
+          "$API/projects/$ID/registry/repositories" | jq -r '.[]?.id'); do
+          if curl -sS --header "$H" \
+            "$API/projects/$ID/registry/repositories/$DEPOT/tags" \
+            | jq -r '.[]?.name' | grep -q "^$COURT$"; then
+            echo "image publiee sous le tag $COURT"
+            exit 0
+          fi
+        done
+        echo "aucun tag $COURT dans le registre : le pipeline de depart n a pas publie"
+        exit 1
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: image_publiee
+      until: image_publiee.rc == 0
+      retries: 10
+      delay: 6
+      changed_when: false
+
+    # LE DEFAUT SE MESURE SUR L IMAGE PUBLIEE, pas sur la base : c est elle que
+    # l apprenant va scanner. Ce passage prouve aussi que le chemin complet
+    # fonctionne (registre en HTTP, authentification, base de Trivy), ce qu un
+    # scan de la base seule ne dit pas. Le mot de passe passe par
+    # l environnement du client Docker, jamais par sa ligne de commande.
+    - name: Mesurer la vulnerabilite critique de l image publiee
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        COURT=$(cd "$TRAVAIL/$PROJET" && git rev-parse --short=8 HEAD)
+        IMAGE="$REGISTRE/root/$PROJET:$COURT"
+        export TRIVY_PASSWORD="$JETON"
+        if ! docker run --rm -e TRIVY_USERNAME=root -e TRIVY_PASSWORD \
+          -v "$CACHE:/root/.cache/trivy" "$TRIVY" image \
+          --quiet --insecure --format json --severity CRITICAL "$IMAGE" \
+          >/tmp/gl22-image.json 2>/tmp/gl22-image.err; then
+          echo "le scan de l image publiee a echoue :"
+          tail -n 8 /tmp/gl22-image.err
+          exit 1
+        fi
+        N=$(jq '[.Results[]?.Vulnerabilities[]?] | length' /tmp/gl22-image.json)
+        echo "$N vulnerabilite(s) critique(s) dans $IMAGE"
+        if [ "$N" -lt 1 ]; then
+          echo "l image publiee ne porte aucune critique : le lab n aurait plus d objet"
+          exit 1
+        fi
+        jq -r '.Results[]?.Vulnerabilities[]? | "  " + .VulnerabilityID + " " + .PkgName' \
+          /tmp/gl22-image.json | sort -u
+        if jq -e --arg id "$PREFEREE" \
+          '[.Results[]?.Vulnerabilities[]? | select(.VulnerabilityID == $id)] | length > 0' \
+          /tmp/gl22-image.json >/dev/null; then
+          FP="$PREFEREE"
+        else
+          FP=$(jq -r '[.Results[]?.Vulnerabilities[]?.VulnerabilityID] | sort | first' /tmp/gl22-image.json)
+        fi
+        PKG=$(jq -r --arg id "$FP" \
+          '[.Results[]?.Vulnerabilities[]? | select(.VulnerabilityID == $id)][0].PkgName' \
+          /tmp/gl22-image.json)
+        echo "FAUX-POSITIF=$FP"
+        echo "PAQUET=$PKG"
+        rm -f /tmp/gl22-image.json /tmp/gl22-image.err /tmp/gl22-base.json /tmp/gl22-base.err
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+        REGISTRE: "{{ registre }}"
+        TRIVY: "{{ trivy_image }}"
+        CACHE: "{{ cache_trivy }}"
+        PREFEREE: "{{ cve_preferee }}"
+      register: mesure
+      changed_when: false
+
+    - name: Retenir le finding trie
+      ansible.builtin.set_fact:
+        faux_positif: "{{ mesure.stdout_lines | select('match', '^FAUX-POSITIF=') | first | regex_replace('^FAUX-POSITIF=', '') }}"
+        paquet_trie: "{{ mesure.stdout_lines | select('match', '^PAQUET=') | first | regex_replace('^PAQUET=', '') }}"
+
+    # CETTE NOTE EST UNE PREMISSE DU LAB, et elle se dit comme telle : le lab
+    # ne decide pas qu un finding est un faux positif, il fournit la
+    # conclusion d une revue pour que l apprenant la CONSIGNE. La ligne
+    # `FAUX-POSITIF:` est lue par les tests, le reste par l apprenant.
+    - name: La conclusion de l equipe securite
+      ansible.builtin.copy:
+        dest: "{{ travail }}/NOTE-EQUIPE-SECURITE.txt"
+        mode: "0644"
+        content: |
+          Note de l equipe securite sur le premier rapport de l image.
+
+          FAUX-POSITIF: {{ faux_positif }}
+          Paquet concerne : {{ paquet_trie }}
+
+          Conclusion de la revue : ce finding ne concerne pas cette image.
+          {% if faux_positif == 'CVE-2023-45853' %}
+          Raison : la faille est dans MiniZip, un utilitaire d archives zip
+          livre avec les sources de zlib. Le paquet zlib1g installe dans
+          l image ne contient que la bibliotheque zlib, et l application
+          n ouvre aucune archive zip. Trivy le rapporte quand meme, parce
+          que le paquet source porte le nom de zlib.
+          {% else %}
+          Raison : le paquet est present dans l image, mais le code vulnerable
+          n est pas atteignable par l application.
+          {% endif %}
+          Cette note est la PREMISSE du lab : en vrai, c est vous qui verifiez
+          avant d ecarter. Les autres findings critiques n ont pas ete
+          examines, et personne n a le droit de les ecarter a votre place.
+
+    - name: Rappeler la contrainte du registre du lab
+      ansible.builtin.copy:
+        dest: "{{ travail }}/REGISTRE-DU-LAB.txt"
+        mode: "0644"
+        content: |
+          Le registre de cette forge repond en HTTP, pas en HTTPS.
+
+          Le job qui CONSTRUIT l image y echouait sur
+          "http: server gave HTTP response to HTTPS client" : le service
+          Docker du job est deja lance avec le registre declare non securise.
+
+          Le job qui SCANNE a la meme contrainte, et elle s ecrit autrement.
+          Trivy ne passe pas par le service Docker, il interroge le registre
+          lui-meme :
+
+            - l option --insecure l autorise a parler HTTP ;
+            - le projet est prive, donc Trivy doit s authentifier. Il lit
+              ses identifiants dans les variables TRIVY_USERNAME et
+              TRIVY_PASSWORD, que le job peut remplir avec les variables
+              CI_REGISTRY_USER et CI_REGISTRY_PASSWORD de GitLab.
+
+          L image de Trivy declare un point d entree : sans le neutraliser
+          (entrypoint: [""]), GitLab ne peut pas lancer le script du job.
+
+          Ce n est pas une particularite du lab : un registre interne en HTTP
+          impose la meme chose en entreprise. En production, on sert le
+          registre en HTTPS et --insecure disparait.
