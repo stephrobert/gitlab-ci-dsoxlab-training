@@ -1,0 +1,3 @@
+id: gl-13-factoriser-le-yaml
+title: "Cesser de répéter le pipeline, sans changer ce qu'il fait"
+description: "Deux jobs déclarent la même image et le même cache, mot pour mot. Les factoriser avec un job caché et une ancre YAML, en gardant le comportement exactement tel qu'il était. Le seul lab noté sur le fichier, une factorisation résolue ne laissant aucune trace dans l'état."

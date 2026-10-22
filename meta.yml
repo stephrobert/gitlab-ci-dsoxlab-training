@@ -68,6 +68,7 @@ sections:
       - gl-10-rapports-de-qualite
       - gl-11-diagnostiquer-un-job-bloque
       - gl-12-accelerer-le-pipeline
+      - gl-13-factoriser-le-yaml
 
   - id: livrer
     title: "Deliver"

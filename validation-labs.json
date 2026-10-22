@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 01:58:23",
+  "genere_le": "2026-10-22 07:05:56",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -143,6 +143,18 @@
       "score_apres": 100,
       "tests": "2/2",
       "duree_s": 235.9,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-13-factoriser-le-yaml": {
+      "id": "gl-13-factoriser-le-yaml",
+      "chemin": "gl-13-factoriser-le-yaml",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "1/1",
+      "duree_s": 158.6,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"

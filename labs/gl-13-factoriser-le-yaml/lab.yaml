@@ -1,0 +1,30 @@
+# Lab gl-13-factoriser-le-yaml. Les champs marqués REQUIS sont exigés par le validator :
+# sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-13-factoriser-le-yaml                 # REQUIS
+title: "Stop repeating the pipeline, without changing what it does"   # REQUIS
+level: c3                     # REQUIS
+description: "Two jobs declare the same image and the same cache, word for word. Factor them with a hidden job and a YAML anchor, and keep the behaviour exactly as it was. The only lab graded on the file, because resolved factorisation leaves no trace in the state."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - extends
+  - yaml
+  - refactoring
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-13-extends-anchors/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 30m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
