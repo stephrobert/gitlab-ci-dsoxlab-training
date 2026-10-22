@@ -1,0 +1,105 @@
+---
+# Solution de reference du lab gl-24-proteger-les-merges.
+#
+# Quatre verrous, posés dans la forge, puis une preuve : un pipeline sur main
+# réussit encore, déploiement en production compris.
+#
+# 1. LA BRANCHE. main est protegee : personne ne pousse directement sauf les
+#    Maintainers (40), pas de push force, et les Developers (30) peuvent
+#    fusionner.
+# 2. LES TAGS. Le motif v* est protege : seuls les Maintainers creent un tag
+#    de release.
+# 3. ET 4. LA FUSION. Un pipeline vert et des discussions resolues sont exiges.
+# 5. LA PREUVE. Un pipeline lance sur main doit rester vert.
+#
+# La regle d approbation et l environnement protege sont Premium (l API
+# protected_environments repond 404 en CE) : ils ne sont pas poses.
+#
+# ECRITURE : aucune apostrophe isolee ni longueur de variable shell dans ce
+# fichier, le playbook serait refuse au chargement.
+- name: Solution gl-24-proteger-les-merges
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    url: "http://gitlab-1.lab"
+
+  tasks:
+    - name: Poser les quatre verrous
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        TMP=$(mktemp)
+        trap 'rm -f "$TMP"' EXIT
+
+        # Un verrou deja pose est remplace : on retire d abord, puis on pose.
+        curl -sS -o /dev/null --header "$H" --request DELETE "$API/projects/$ID/protected_branches/main"
+        CODE=$(curl -sS -o "$TMP" -w "%{http_code}" --header "$H" --request POST \
+          --data "name=main" --data "push_access_level=40" --data "merge_access_level=30" \
+          --data "allow_force_push=false" "$API/projects/$ID/protected_branches")
+        test "$CODE" = "201" || { echo "branche refusee : HTTP $CODE"; head -c 300 "$TMP"; exit 1; }
+
+        curl -sS -o /dev/null --header "$H" --request DELETE "$API/projects/$ID/protected_tags/v%2A"
+        CODE=$(curl -sS -o "$TMP" -w "%{http_code}" --header "$H" --request POST \
+          --data "name=v*" --data "create_access_level=40" "$API/projects/$ID/protected_tags")
+        test "$CODE" = "201" || { echo "tag refuse : HTTP $CODE"; head -c 300 "$TMP"; exit 1; }
+
+        CODE=$(curl -sS -o "$TMP" -w "%{http_code}" --header "$H" --request PUT \
+          --data "only_allow_merge_if_pipeline_succeeds=true" \
+          --data "only_allow_merge_if_all_discussions_are_resolved=true" \
+          "$API/projects/$ID")
+        test "$CODE" = "200" || { echo "reglages refuses : HTTP $CODE"; head -c 300 "$TMP"; exit 1; }
+        echo "quatre verrous poses"
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ url }}"
+      changed_when: true
+
+    - name: Lancer un pipeline sur main
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        CODE=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" --request POST "$API/projects/$ID/pipeline?ref=main")
+        test "$CODE" = "201" || { echo "pipeline refuse : HTTP $CODE"; exit 1; }
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ url }}"
+      changed_when: true
+
+    - name: Le pipeline est vert, deploiement en production compris
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        ETAT=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&per_page=1" | jq -r '.[0].status // "aucun"')
+        echo "$ETAT"
+        case "$ETAT" in
+          success) exit 0 ;;
+          failed|canceled) echo "pipeline en echec"; exit 2 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ url }}"
+      register: dernier
+      until: dernier.rc != 1
+      failed_when: dernier.rc != 0
+      retries: 40
+      delay: 10
+      changed_when: false

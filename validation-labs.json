@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 18:31:23",
+  "genere_le": "2026-10-22 19:20:26",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -282,6 +282,19 @@
       "pourquoi": "",
       "date": "2026-10-22",
       "empreinte": "d135038bd9ff5c9c424f3f4777a2d0bc26cd5c7991f7cd143473818d8772e144"
+    },
+    "gl-24-proteger-les-merges": {
+      "id": "gl-24-proteger-les-merges",
+      "chemin": "gl-24-proteger-les-merges",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 104.7,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "9f4b6c1878c8fa7569149a89781bfb8472c8b731d48d6da61f66b5946b23ac52"
     },
     "gl-ep1-un-pipeline-qui-dit-vrai": {
       "id": "gl-ep1-un-pipeline-qui-dit-vrai",
