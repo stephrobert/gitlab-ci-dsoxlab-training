@@ -63,7 +63,20 @@
             # DEFAUT 3 : un jeton ecrit en clair dans un fichier versionne.
             # Tout le monde y a acces, il apparait dans l'historique, et le
             # revoquer demande de modifier le depot.
-            DEPLOY_TOKEN: "glpat-7Hk2mQvX9rLtZ3nB4wYs"
+            #
+            # LA VALEUR S'ANNONCE FAUSSE, ET C'EST VOULU. Un vrai jeton GitLab
+            # a la forme `glpat-` suivie de VINGT caracteres : la protection de
+            # GitHub a donc refuse le premier push de ce catalogue, sur une
+            # valeur inventee de vingt caracteres qui ressemblait trop a un vrai
+            # (mesure le 2026-10-22, erreur GH013).
+            #
+            # Celle-ci en porte dix-neuf et dit ce qu'elle est. Elle reste
+            # reconnaissable comme un jeton pour le lecteur, ce qui est
+            # necessaire puisque l'epreuve lui demande d'en repérer un, mais
+            # elle ne peut plus etre prise pour un secret reel. NE PAS la
+            # rendre « credible » : le test cherche la FORME
+            # (`glpat-[A-Za-z0-9_-]{16,}`), jamais cette valeur.
+            DEPLOY_TOKEN: "glpat-EXEMPLE-FACTICE-EP1"
 
           ruff-lint:
             stage: lint
