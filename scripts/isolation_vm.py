@@ -21,9 +21,11 @@ class IsolationEteinte(RuntimeError):
     """Jamais levee ici : ce catalogue n'a pas d'isolation par snapshot."""
 
 
-def hotes_du_lab(lab_root: Path) -> list[str]:  # noqa: ARG001
+def hotes_du_lab(lab_root: Path) -> list[str]:
+    del lab_root  # signature imposee par dsoxlab, sans objet ici
     return []
 
 
-def snapshot_reset(hotes: list[str]) -> None:  # noqa: ARG001
+def snapshot_reset(hotes: list[str]) -> None:
+    del hotes  # signature imposee par dsoxlab, sans objet ici
     return None

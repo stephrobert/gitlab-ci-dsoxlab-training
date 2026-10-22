@@ -101,11 +101,11 @@ def main() -> int:
 
     # Un linter complet, s'il est installe, voit bien plus que ce controle :
     # on le lance d'abord, et on ne le rend pas obligatoire.
-    ruff = subprocess.run(["which", "ruff"], capture_output=True, text=True)
+    ruff = subprocess.run(["which", "ruff"], check=False, capture_output=True, text=True)
     if ruff.returncode == 0:
         r = subprocess.run(
             ["ruff", "check", "--select", "F", *[str(c) for c in cibles]],
-            cwd=RACINE, capture_output=True, text=True,
+            cwd=RACINE, check=False, capture_output=True, text=True,
         )
         if r.returncode != 0:
             print(r.stdout.strip() or r.stderr.strip())

@@ -11,16 +11,72 @@ requires-python = ">=3.11"
 dependencies = []
 
 [tool.pytest.ini_options]
+# Le contrat dsoxlab impose que chaque lab nomme son test
+# `challenge/tests/test_functional.py`. Les vingt et un fichiers partagent donc
+# le même basename dans des répertoires sans `__init__.py` : le mode d'import
+# « prepend » les prendrait pour un seul module et échouerait en « import file
+# mismatch » dès qu'on collecte `labs/` d'un bloc. `importlib` les isole par
+# leur chemin. Repris des catalogues frères, qui ont tous payé ce défaut.
+addopts = "--import-mode=importlib"
 testpaths = ["tests", "labs"]
 # `challenge/work` contient le travail de l'apprenant : il n'est jamais
 # collecté, sous peine de ramasser ses fichiers temporaires comme des tests.
-norecursedirs = ["challenge/work", ".git", ".venv"]
+norecursedirs = ["challenge/work", ".git", ".venv", "solution"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+exclude = [
+    # Les solutions sont CHIFFRÉES : ruff ne peut pas les lire, et n'a rien à y
+    # dire. `solution-en-clair/` est leur version lisible, hors de git.
+    "solution",
+    "solution-en-clair",
+    # Le répertoire de travail de l'apprenant n'est pas du code du dépôt.
+    "labs/*/challenge/work",
+]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "S"]
-# S101 : `assert` est l'outil de travail d'un test, pas un défaut.
-per-file-ignores = { "labs/**/tests/*.py" = ["S101"], "tests/*.py" = ["S101"] }
+# Le jeu est repris des catalogues frères (bdd, devsecops, iam, kubernetes,
+# terraform) plutôt qu'inventé ici : ces dépôts se relisent les uns les autres,
+# et un contributeur qui passe de l'un à l'autre ne doit pas réapprendre ce qui
+# est accepté. L'écrire dans le dépôt importe aussi parce que les hooks et la
+# CI appellent `uvx ruff`, donc la DERNIÈRE version publiée : sans jeu déclaré,
+# ce que ruff juge change le jour où ruff change d'avis.
+select = [
+    "E4", "E7", "E9", "F",  # les défauts de ruff : erreurs réelles
+    "I",    # imports triés
+    "UP",   # tournures dépassées pour la version cible
+    "B",    # bugbear : les pièges qui se paient à l'exécution
+    "BLE",  # except nu : une exception avalée se paie plus tard
+    "SIM",  # simplifications lisibles
+    "RUF",  # règles propres à ruff
+    "DTZ",  # dates sans fuseau
+    "PLE", "PLW",
+    "S",    # bandit
+]
+ignore = [
+    # Les messages d'assertion ENSEIGNENT : ce sont eux que l'apprenant lit
+    # quand un test échoue. Les couper à 100 colonnes les rendrait moins
+    # lisibles pour gagner une convention de mise en page.
+    "E501",
+    # `assert` est le verbe de pytest.
+    "S101",
+    # Lancer `git`, `ansible-playbook` ou `dsoxlab` par leur nom depuis le PATH
+    # est le métier de ces scripts. Coder un chemin absolu les casserait sur
+    # une machine où l'outil vit ailleurs, ce que le contrat interdit.
+    "S603", "S607",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Les vingt et un tests portent un `# noqa: E402` sur les imports qui suivent
+# le `sys.path.insert` menant à `labs/_commun/`. Mesuré le 2026-10-22 : E402 ne
+# se déclenche pas sur ces lignes, donc ces directives sont mortes et RUF100 a
+# raison de le dire.
+#
+# Elles ne sont pourtant pas retirées ici, et c'est délibéré : ces fichiers
+# portent les VINGT ET UN verdicts VALIDE 0 -> 100 de `validation-labs.json`,
+# et la règle du projet est qu'un test modifié se rejoue. Rejouer vingt et un
+# labs sur la forge pour supprimer un commentaire n'est pas un arbitrage
+# raisonnable. À retirer lors de la prochaine reprise de ces tests, qui
+# s'accompagnera de sa réattestation.
+"labs/**/test_functional.py" = ["RUF100"]

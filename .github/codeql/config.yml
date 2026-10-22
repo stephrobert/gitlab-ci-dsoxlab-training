@@ -1,0 +1,46 @@
+# Configuration CodeQL du catalogue GitLab CI/CD.
+#
+# POURQUOI CE FICHIER EXISTE
+#
+# Le `ci.yml` de ce dépôt le RÉFÉRENCE. Sans lui, les deux jobs CodeQL
+# échouent sur « The configuration file .github/codeql/config.yml does not
+# exist », et le chemin est le piège : il vit sous `.github/codeql/` et non
+# `.github/codeql-config.yml`. Le catalogue Bases de données a payé exactement
+# cette confusion le 2026-10-20.
+#
+# CE QU'IL EXCLUT, ET POURQUOI, MESURÉ SUR CE DÉPÔT LE 2026-10-22
+#
+# Les solutions de référence, et elles seules. Les **21 sur 21** sont chiffrées
+# par ansible-vault : CodeQL n'en lirait rien d'exploitable, et les exclure
+# évite qu'il rapporte un jour quelque chose sur du texte chiffré.
+#
+# `solution-en-clair/` n'est PAS listé ici, et ce n'est pas un oubli : il est
+# hors version (`.gitignore`), et `git ls-files` en rend zéro. Il n'existe pas
+# dans l'arbre que CodeQL analyse. Une exclusion l'y nommant laisserait croire
+# qu'il pourrait s'y trouver.
+#
+# Aucune fixture n'est exclue non plus, parce qu'il n'y en a pas :
+# `find labs -type d -name fixtures` rend zéro, les vingt et un labs étant tous
+# de runtime `vm`, où l'état de départ est posé par un playbook et par un
+# bundle git, pas par des fichiers copiés. Recopier l'exclusion
+# `labs/**/fixtures/**` d'un catalogue frère serait une ligne qui ne protège
+# rien.
+#
+# CE QUI RESTE ANALYSÉ, ET C'EST L'ESSENTIEL
+#
+#   .github/workflows/        les cinq workflows du catalogue lui-même
+#   scripts/                  l'outillage de validation et de chiffrement
+#   tests/                    les garde-fous du dépôt
+#   labs/_commun/             le client d'API GitLab partagé par tous les tests
+#   labs/**/challenge/tests/  les vingt et un tests joués depuis le poste, qui
+#                             parlent à la forge par HTTP avec un jeton
+#
+# Ce dernier point est la raison d'être du contrôle ici : ces tests portent un
+# jeton d'API et appellent une forge sur le réseau. Un test qui joindrait une
+# destination non déclarée, ou qui sortirait ce jeton du poste, reste vu.
+name: "Catalogue GitLab CI/CD, hors solutions chiffrées"
+
+paths-ignore:
+  # Les solutions de référence sont chiffrées (ansible-vault) : CodeQL n'en
+  # lirait rien d'exploitable. 21 sur 21 au 2026-10-22.
+  - "solution/**"

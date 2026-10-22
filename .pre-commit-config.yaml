@@ -4,6 +4,31 @@
 # pas sur les fichiers d'un commit. Un lab retiré du `meta.yml` casse le
 # catalogue sans qu'aucun fichier du commit ne le montre.
 
+# Trois choses qu'aucun hook ne doit NI lire NI réécrire.
+#
+# `solution/` porte les vingt et une solutions chiffrées par ansible-vault :
+# c'est du chiffré, pas du source, et `end-of-file-fixer` comme
+# `trailing-whitespace` en corrompraient la charge de façon irréversible.
+#
+# `labs/_commun/depot/` porte le BUNDLE GIT du dépôt fil rouge, un binaire.
+# Mesuré le 2026-10-22 en ajoutant le hook ruff à ce dépôt : le premier
+# passage de `trailing-whitespace` et `end-of-file-fixer` lui a retiré
+# 12 octets, de 67 018 à 67 006. `git bundle verify` l'acceptait encore, ce qui
+# est pire qu'un échec franc : le jour où la coupe tombe ailleurs, ce sont les
+# dix-neuf labs qui perdent leur dépôt de départ sans qu'un contrôle le dise.
+#
+# Les tests des labs, eux, ne sont PAS exclus, bien que le même passage ait
+# retiré sa ligne finale au test du lab 09. Les exclure de tous les hooks les
+# retirerait aussi de `ruff`, alors que la CI les lint de son côté : le job
+# « parité pre-commit » cesserait de prouver ce qu'il annonce. Une ligne vide
+# en fin de fichier n'est pas une modification de ce qu'un test mesure, et la
+# normalisation ne se produit qu'une fois.
+exclude: |
+  (?x)^(
+    solution/
+    |labs/_commun/depot/
+  )
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
@@ -73,7 +98,14 @@ repos:
       # commentaire de script embarque.
       - id: playbooks-se-chargent
         name: tous les playbooks se chargent
-        entry: python3 scripts/check-playbooks.py
+        # `--with pyyaml`, comme le hook `garde-fous` juste au-dessus. Sans
+        # lui, le script tourne avec l'interpreteur du systeme, ou pyyaml n'est
+        # pas installe : il ne peut plus distinguer un playbook d'un fichier de
+        # taches, les passe tous a `--syntax-check`, et DEUX fichiers de taches
+        # sont alors refuses avec « 'ansible.builtin.file' is not a valid
+        # attribute for a Play ». Mesure le 2026-10-22 : le hook echouait, le
+        # meme script passait en ligne de commande.
+        entry: uv run --with pyyaml python3 scripts/check-playbooks.py
         language: system
         pass_filenames: false
 
@@ -82,3 +114,17 @@ repos:
         entry: python3 tests/outils/pas_de_tiret_cadratin.py
         language: system
         pass_filenames: false
+
+      # La CI joue `uvx ruff check .` : sans ce hook, une erreur de lint part
+      # en CI au lieu d'être arrêtée au commit. Les catalogues frères le
+      # portent tous.
+      #
+      # `--force-exclude` n'est pas une précaution : sans lui, l'exclusion
+      # déclarée dans le pyproject est IGNORÉE pour tout fichier passé en
+      # argument, et pre-commit passe justement les fichiers en argument.
+      - id: ruff
+        name: ruff (lint du python des labs et des scripts)
+        entry: uvx ruff check --fix --force-exclude
+        language: system
+        types_or: [python, pyi]
+        require_serial: true

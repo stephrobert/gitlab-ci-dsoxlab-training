@@ -46,6 +46,27 @@ import subprocess
 import sys
 from pathlib import Path
 
+# L'import est au niveau du module, et pas dans le `try` qui lit un fichier :
+# un `except` qui nomme `yaml.YAMLError` doit pouvoir evaluer ce nom, sans quoi
+# un import manquant leverait un NameError a la place de l'erreur attendue.
+#
+# Mais il reste FACULTATIF, et c'est ce que l'import paresseux d'origine
+# protegeait : sous pre-commit, ce script tourne avec l'interpreteur du systeme,
+# ou pyyaml n'est pas forcement installe. Mesure le 2026-10-22 en remontant
+# betement l'import : le hook est sorti en ModuleNotFoundError alors que le
+# meme script passait en ligne de commande.
+try:
+    import yaml
+
+    ERREURS_DE_LECTURE: tuple[type[BaseException], ...] = (
+        OSError,
+        UnicodeDecodeError,
+        yaml.YAMLError,
+    )
+except ImportError:  # pragma: no cover - depend de l'environnement d'appel
+    yaml = None  # type: ignore[assignment]
+    ERREURS_DE_LECTURE = (OSError, UnicodeDecodeError)
+
 RACINE = Path(__file__).resolve().parents[1]
 VAULT = RACINE / ".vault-pass"
 
@@ -75,11 +96,12 @@ def est_un_playbook(fichier: Path) -> bool:
     l'ecarte pas pour autant, on l'enveloppe (voir `charge`), parce que c'est
     justement le fichier le plus partage du catalogue.
     """
+    if yaml is None:
+        # Sans pyyaml, on ne peut pas trancher ici : on laisse Ansible le faire.
+        return True
     try:
-        import yaml  # dependance deja presente dans le catalogue
-
         doc = yaml.safe_load(fichier.read_text())
-    except Exception:
+    except ERREURS_DE_LECTURE:
         # Illisible ou chiffre (ansible-vault) : on laisse Ansible trancher.
         return True
     if not isinstance(doc, list) or not doc:
@@ -112,7 +134,7 @@ def charge(fichier: Path) -> tuple[bool, str]:
     if VAULT.is_file():
         cmd += ["--vault-password-file", str(VAULT)]
     try:
-        r = subprocess.run(cmd, cwd=RACINE, capture_output=True, text=True)
+        r = subprocess.run(cmd, cwd=RACINE, check=False, capture_output=True, text=True)
     finally:
         if enveloppe is not None:
             enveloppe.unlink(missing_ok=True)
@@ -121,8 +143,8 @@ def charge(fichier: Path) -> tuple[bool, str]:
     # Le message utile est sur stderr, et la ligne qui nomme la cause est
     # noyee dans la banniere de version d'ansible-playbook.
     lignes = [
-        l for l in (r.stdout + r.stderr).splitlines()
-        if "ERROR" in l or "failed at splitting" in l or "Origin:" in l
+        ligne for ligne in (r.stdout + r.stderr).splitlines()
+        if "ERROR" in ligne or "failed at splitting" in ligne or "Origin:" in ligne
     ]
     return False, "\n      ".join(lignes[:4]) or "(aucun message lisible)"
 

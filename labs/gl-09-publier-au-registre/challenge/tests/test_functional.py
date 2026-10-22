@@ -210,4 +210,3 @@ def test_la_publication_a_reellement_eu_lieu_dans_un_job(forge, projet_du_lab):
             "casser ce qui marchait."
         ),
     )
-

@@ -3,15 +3,52 @@
 # par `id` et non par position.
 #
 # La langue par défaut de l'outil est l'anglais : `meta.yml` porte donc
-# l'anglais, et ce fichier le français. Sans lui, une session anglaise lit les
+# l'anglais, et ce fichier le français. Sans lui, une session française lit les
 # titres de sections tels qu'ils sont écrits dans `meta.yml`.
+#
+# Les quatre titres sont ceux des QUATRE NIVEAUX du parcours du site, mot pour
+# mot : le catalogue doit se lire comme la formation qu'il valide, sinon on
+# tient deux découpages en parallèle.
 
 repo:
-  title: gitlab-ci-dsoxlab-training
+  title: GitLab CI/CD
   description: |
-    À remplir : ce que ce catalogue apprend, et à qui.
+    Écrire un pipeline GitLab CI/CD, lire ses échecs, faire circuler les
+    données entre les jobs, sortir les secrets du code, contrôler quand il
+    part, publier au registre, puis l'industrialiser : factoriser le YAML,
+    l'accélérer par un DAG et des matrices, orchestrer plusieurs pipelines et
+    le fiabiliser.
+
+    Chaque lab se joue contre une vraie instance GitLab CE et son runner, et
+    il est noté sur l'état du pipeline qu'il laisse, jamais sur les commandes
+    tapées.
 
 sections:
-  - id: premiers-pas
-    title: Premiers pas
-    description: À remplir.
+  - id: ecrire
+    title: Écrire un pipeline et lire ses échecs
+    description: >-
+      Un premier pipeline vert, un échec lu dans son journal puis corrigé, la
+      bonne image et le runner qui prend le job, les artifacts et le cache,
+      les secrets hors du code, et la maîtrise du moment où chaque job part.
+  - id: livrer
+    title: Livrer
+    description: >-
+      Déclencher un pipeline par planification, par l'API et depuis un autre
+      projet, publier une image au registre, afficher les rapports de qualité
+      là où le relecteur regarde, et diagnostiquer un job bloqué en attente ou
+      silencieusement sauté.
+  - id: industrialiser
+    title: Industrialiser
+    description: >-
+      Accélérer le pipeline par un DAG et un cache réellement réemployé,
+      factoriser le YAML avec `extends` et les ancres, externaliser les
+      gabarits dans des fichiers inclus, tester sur une matrice, orchestrer un
+      pipeline enfant généré, cesser de tout jouer deux fois pour un seul
+      changement, et fiabiliser l'ensemble sans masquer les échecs.
+  - id: securiser
+    title: Sécuriser et outiller
+    description: >-
+      Pas encore écrit. C'est le trou que l'audit du 2026-10-21 a trouvé :
+      tout le niveau C4 de la formation, sept leçons de sécurité et trois
+      d'outillage, n'a aucune mise en pratique. Les labs 20 à 25 du plan
+      viennent ici.
