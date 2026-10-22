@@ -1,0 +1,330 @@
+---
+# Joue par `dsoxlab run` : il pose un pipeline VERT qui deploie en production, et
+# un projet que personne ne pourrait garantir devant un auditeur.
+#
+# COMME POUR LES EPREUVES DES NIVEAUX 1 ET 2, l enonce est fabrique ici et non
+# pris dans une branche `starter/` : la combinaison de defauts n existe dans
+# aucune branche amont. Le depot fournit l application, le pipeline est ecrit
+# ici.
+#
+# CINQ PROMESSES NE SONT PAS TENUES, et aucun job n echoue pour autant :
+#
+#   1. le secret de deploiement est une variable ni protegee ni masquee ;
+#   2. main accepte les pushs des Developers, et la reecriture d historique ;
+#   3. une fusion ne demande aucun pipeline vert ;
+#   4. les images des jobs sont designees par un tag mobile, sans digest ;
+#   5. aucun scanner n a jamais tourne.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : apres les labs precedents, il ne reinstalle rien. Le runner n est
+# pas touche ici : si un lab precedent l a durci, son nettoyage l a restaure.
+#
+# ECRITURE : ce fichier ne contient AUCUNE apostrophe isolee, et aucune
+# longueur de variable shell du genre dollar-accolade-diese. Les deux font
+# refuser le playbook au chargement (voir _commun/depot.yaml).
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer l_epreuve gl-ep3-un-pipeline-qu-on-peut-auditer
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-ep3"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+    # Un secret FABRIQUE : ce n est le jeton de personne. Il respecte les
+    # regles du masquage de GitLab (au moins huit caracteres de l alphabet
+    # base64), sans quoi la correction de l apprenant serait refusee.
+    secret_deploiement: "Zq8vK2mLx9Rt4WbN7dHs"
+
+  tasks:
+    # La copie de travail est testee AVANT le depot commun : c est elle qui dit
+    # si l epreuve est jouee pour la premiere fois ou rejouee. Les defauts ne
+    # sont poses que sur une copie neuve, jamais par-dessus le travail de
+    # l apprenant.
+    - name: La copie de travail existe-t-elle deja ?
+      ansible.builtin.stat:
+        path: "{{ travail }}/{{ projet }}/.git"
+      register: copie_ep3
+
+    # Le depot commun pousse `main` EN FORCE. Une branche protegee contre la
+    # reecriture, laissee par un lab precedent, refuserait ce push.
+    - name: Lever la protection de main d une eventuelle execution precedente
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        if test -n "$ID"; then
+          curl -sS -o /dev/null --header "$H" --request DELETE "$API/projects/$ID/protected_branches/main"
+        fi
+        exit 0
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: false
+      when: not copie_ep3.stat.exists
+
+    - name: Le projet de l_epreuve dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "main"
+        exiger_absence_pipeline: "{{ not copie_ep3.stat.exists }}"
+        effacer_pipelines: "{{ not copie_ep3.stat.exists }}"
+        attendre_pipeline_depart: false
+        adapter_registre_local: false
+
+    # LE SECRET EST CREE AVANT LE PREMIER PIPELINE, sinon le job de deploiement
+    # du pipeline de depart echouerait faute de secret. Il n est NI protege NI
+    # masque : le defaut 1. Si la variable existe deja (rejeu), elle est remise
+    # dans cet etat.
+    - name: Le secret de deploiement, ni protege ni masque
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        CODE=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" "$API/projects/$ID/variables/DEPLOY_TOKEN")
+        if test "$CODE" = "200"; then
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" --request PUT \
+            --data-urlencode "value=$SECRET" \
+            --data "protected=false" --data "masked=false" \
+            "$API/projects/$ID/variables/DEPLOY_TOKEN")
+          test "$CODE" = "200"
+        else
+          CODE=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" --request POST \
+            --data "key=DEPLOY_TOKEN" --data-urlencode "value=$SECRET" \
+            --data "protected=false" --data "masked=false" \
+            "$API/projects/$ID/variables")
+          test "$CODE" = "201"
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+        SECRET: "{{ secret_deploiement }}"
+      changed_when: true
+      no_log: true
+      when: not copie_ep3.stat.exists
+
+    # LE PIPELINE DE DEPART : deux jobs, qui marchent. L etape `test` est
+    # declaree parce que les templates de securite y rangent leurs jobs : un
+    # job range dans une etape que `stages:` ne declare pas ferait refuser TOUTE
+    # la configuration. Le job de deploiement a besoin du secret et cible
+    # l environnement `production`. Les deux images portent un tag mobile.
+    - name: Un pipeline qui teste puis deploie en production
+      ansible.builtin.copy:
+        dest: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        mode: "0644"
+        content: |
+          stages:
+            - test
+            - deploy
+
+          tester:
+            stage: test
+            image: alpine:3.24.2
+            script:
+              - echo "TESTS-OK"
+
+          deployer-production:
+            stage: deploy
+            image: alpine:3.24.2
+            environment:
+              name: production
+            rules:
+              - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+            script:
+              - test -n "$DEPLOY_TOKEN"
+              - echo "DEPLOIEMENT-PRODUCTION"
+      when: not copie_ep3.stat.exists
+
+    - name: Pousser le pipeline dans la forge
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        AUTH="oauth2:$JETON"
+        git add -A
+        git diff --cached --quiet || git commit -q -m "feat: un pipeline qui teste puis deploie en production"
+        git push -q "http://$AUTH@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      when: not copie_ep3.stat.exists
+      changed_when: true
+      no_log: true
+
+    # Le pipeline de depart doit etre TERMINE avant de rendre la main : sinon
+    # la mesure qui suit lirait un etat transitoire. On attend le pipeline du
+    # DERNIER commit de main, pas le dernier pipeline venu.
+    - name: Attendre le pipeline du dernier commit de main
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+        test -n "$SHA"
+        ETAT=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1" | jq -r '.[0].status // "aucun"')
+        echo "$ETAT"
+        case "$ETAT" in
+          success|failed|canceled|skipped|manual) exit 0 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: pipeline_depart
+      until: pipeline_depart.rc == 0
+      retries: 40
+      delay: 10
+      changed_when: false
+
+    # LES DEFAUTS 2 ET 3 SE POSENT APRES LE PIPELINE, parce qu un projet neuf
+    # protege `main` de lui-meme et que le depot commun l a pousse en force. On
+    # protege donc `main` explicitement a l envers : push ouvert aux Developers
+    # (30), reecriture d historique permise, et fusion sans pipeline vert.
+    - name: Poser un main ouvert a tous les Developers
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        curl -sS -o /dev/null --header "$H" --request DELETE "$API/projects/$ID/protected_branches/main"
+        CODE=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" --request POST \
+          --data "name=main" --data "push_access_level=30" --data "merge_access_level=30" \
+          --data "allow_force_push=true" "$API/projects/$ID/protected_branches")
+        test "$CODE" = "201" || { echo "protection de main refusee : HTTP $CODE"; exit 1; }
+        CODE=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" --request PUT \
+          --data "only_allow_merge_if_pipeline_succeeds=false" "$API/projects/$ID")
+        test "$CODE" = "200" || { echo "reglages du projet refuses : HTTP $CODE"; exit 1; }
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: true
+      when: not copie_ep3.stat.exists
+
+    # LE SETUP MESURE SON PROPRE ETAT DE DEPART, dans la forge et non dans ses
+    # fichiers. Chaque route est sondee AVANT d etre lue : un comptage fait sur
+    # la reponse d un 404 mesure le message d erreur, pas la donnee.
+    - block:
+        - name: Mesurer l etat de depart
+          ansible.builtin.shell: |
+            set -o pipefail
+            DIAG="/var/tmp/gl-ep3-diagnostic-depart.txt"
+            : > "$DIAG"
+            chmod 0644 "$DIAG"
+            # no_log masque la sortie : chaque echec ecrit sa cause dans ce fichier.
+            echec() { echo "$*" >> "$DIAG"; exit 1; }
+            JETON=$(cat /etc/dsoxlab/jeton-api)
+            API="$URL/api/v4"
+            H="PRIVATE-TOKEN: $JETON"
+            code() { curl -sS -o /dev/null -w "%{http_code}" --header "$H" "$API/$1"; }
+            ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+            test -n "$ID" || echec "projet introuvable"
+
+            C=$(code "projects/$ID/variables/DEPLOY_TOKEN")
+            test "$C" = "200" || echec "variables/DEPLOY_TOKEN : HTTP $C (200 attendu)"
+            V=$(curl -sS --header "$H" "$API/projects/$ID/variables/DEPLOY_TOKEN")
+            test "$(echo "$V" | jq -r .protected)" = "false" || echec "DEPLOY_TOKEN est deja protegee"
+            test "$(echo "$V" | jq -r .masked)" = "false" || echec "DEPLOY_TOKEN est deja masquee"
+
+            C=$(code "projects/$ID/protected_branches/main")
+            test "$C" = "200" || echec "protected_branches/main : HTTP $C (200 attendu)"
+            B=$(curl -sS --header "$H" "$API/projects/$ID/protected_branches/main")
+            test "$(echo "$B" | jq -r .allow_force_push)" = "true" || echec "main refuse deja la reecriture"
+            test "$(echo "$B" | jq -r '[.push_access_levels[].access_level] | max')" = "30" \
+              || echec "le push sur main n est pas ouvert aux Developers"
+
+            C=$(code "projects/$ID")
+            test "$C" = "200" || echec "projects/ID : HTTP $C (200 attendu)"
+            test "$(curl -sS --header "$H" "$API/projects/$ID" | jq -r .only_allow_merge_if_pipeline_succeeds)" = "false" \
+              || echec "la fusion exige deja un pipeline vert"
+
+            SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+            PL=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1" | jq -r '.[0].id // empty')
+            test -n "$PL" || echec "aucun pipeline sur le SHA de main ($SHA)"
+            ETAT_PL=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL" | jq -r .status)
+            if [ "$ETAT_PL" != "success" ]; then
+              echo "le pipeline de depart est $ETAT_PL : il devrait etre vert" >> "$DIAG"
+              curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL/jobs" | jq -r '.[] | "  \(.name) \(.status)"' >> "$DIAG"
+              exit 1
+            fi
+            NB=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL/jobs?per_page=100" | jq 'length')
+            test "$NB" = "2" || echec "le pipeline de depart porte $NB job(s) au lieu de 2"
+            DEPL=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL/jobs?per_page=100" \
+              | jq -r '.[] | select(.name == "deployer-production") | .status')
+            test "$DEPL" = "success" || echec "deployer-production : $DEPL (success attendu)"
+
+            C=$(code "projects/$ID/ci/lint?dry_run=true&ref=main")
+            test "$C" = "200" || echec "ci/lint : HTTP $C (200 attendu)"
+            M=$(curl -sS --header "$H" "$API/projects/$ID/ci/lint?dry_run=true&ref=main" | jq -r '.merged_yaml // empty')
+            test -n "$M" || echec "le linter ne rend aucune configuration compilee"
+            if echo "$M" | grep -q "sha256:"; then echec "une image est deja epinglee"; fi
+            if echo "$M" | grep -qi "sast\|secret_detection"; then echec "un scanner est deja configure"; fi
+
+            # Information : cette route est Premium. Le code est consigne pour
+            # que le diagnostic dise ce qui a ete sonde, pas suppose.
+            C=$(code "projects/$ID/protected_environments")
+            echo "protected_environments : HTTP $C (404 attendu en CE, non utilise)" >> "$DIAG"
+            echo "etat de depart : pipeline $PL vert, cinq defauts en place"
+          args:
+            executable: /bin/bash
+          environment:
+            PROJET: "{{ projet }}"
+            URL: "{{ gitlab_url }}"
+          changed_when: false
+          no_log: true
+      rescue:
+        - name: Lire le diagnostic de l etat de depart
+          ansible.builtin.command: cat /var/tmp/gl-ep3-diagnostic-depart.txt
+          register: diagnostic
+          changed_when: false
+          failed_when: false
+        - name: La cause de l echec de la mesure
+          ansible.builtin.fail:
+            msg: "{{ diagnostic.stdout_lines | default(['fichier de diagnostic absent']) }}"
+      when: not copie_ep3.stat.exists
+
+    - name: Les faits de la situation
+      ansible.builtin.copy:
+        dest: "{{ travail }}/NOTE-AUDIT.txt"
+        mode: "0644"
+        content: |
+          Ce que la situation vous donne deja.
+
+          Le projet pipeline-craft porte un pipeline vert : un job tester, puis
+          un job deployer-production qui cible l environnement production et
+          qui a besoin du secret DEPLOY_TOKEN. Un auditeur va le lire.
+
+          Tout ce qu il regarde est un REGLAGE DE LA FORGE, lisible par son
+          API : variables, branches protegees, reglages du projet, jobs et
+          rapports d un pipeline, configuration telle que GitLab la compile
+          (ci/lint). Les corriger passe par la meme API, ou par Settings.
+
+          Un jeton personnel de la VM, root, est lisible dans
+          /etc/dsoxlab/jeton-api : il sert a appeler l API depuis la machine
+          sans jamais l ecrire sur une ligne de commande.
+
+          Deux routes sont Premium et ne servent pas : les regles
+          d approbation et les environnements proteges. Aucune licence
+          payante n est necessaire.

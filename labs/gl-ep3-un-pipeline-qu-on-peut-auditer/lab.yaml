@@ -1,0 +1,34 @@
+# Épreuve de fin de niveau c4. Les champs marqués REQUIS sont exigés par le
+# validator : sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-ep3-un-pipeline-qu-on-peut-auditer            # REQUIS
+title: "Level exam: a pipeline you can audit"          # REQUIS
+level: c4                     # REQUIS
+# `challenge` et non `lab` : une epreuve se passe sans pas a pas et sans
+# indice. Les defauts ne sont pas nommes, et c'est le sujet.
+lab_type: challenge
+difficulty: advanced
+description: "The pipeline is green and the production deployment works, but nobody could vouch for the chain: a deployment secret travels to every branch and to the logs, anyone with push rights can rewrite main, a merge needs no green pipeline, the images are not pinned, and no scanner has ever run. Five defects, none of them named. Make the pipeline auditable, graded on the state the forge reports through its API. No Premium feature is needed."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - ci.pipeline.secure
+  - variables-protegees
+  - sast
+  - secret-detection
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/   # REQUIS, http(s)
+estimated_time: 75m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-meme sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecte.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
