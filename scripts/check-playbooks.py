@@ -71,6 +71,15 @@ RACINE = Path(__file__).resolve().parents[1]
 VAULT = RACINE / ".vault-pass"
 
 
+def est_chiffre(fichier: Path) -> bool:
+    """Un fichier ansible-vault s'annonce par son en-tete."""
+    try:
+        with fichier.open("rb") as flux:
+            return flux.read(14) == b"$ANSIBLE_VAULT"
+    except OSError:
+        return False
+
+
 def playbooks() -> list[Path]:
     """Les playbooks du catalogue, solutions chiffrees comprises.
 
@@ -155,10 +164,26 @@ def main() -> int:
         print("aucun playbook trouve")
         return 0
 
+    # TROIS issues, pas deux. Un fichier chiffre dont la cle est absente
+    # n'est ni charge ni refuse : il n'a PAS ETE REGARDE, et le compter en
+    # echec accuserait le catalogue de ce qui manque au poste.
+    #
+    # Mesure le 2026-10-22, au premier passage en CI : `.vault-pass` est
+    # gitignore, donc absent du runner, et les 21 solutions chiffrees sont
+    # ressorties en « ne se chargent pas » avec « Attempting to decrypt but no
+    # vault secrets found ». Vingt et un faux refus, sur un catalogue dont pas
+    # une ligne n'etait en cause. C'est le meme travers que le reste de la
+    # journee : un controle qui conclut sans avoir pu regarder.
     echecs = 0
+    sautes = 0
+    sans_cle = not VAULT.is_file()
     for f in cibles:
-        ok, message = charge(f)
         rel = f.relative_to(RACINE) if RACINE in f.parents else f
+        if sans_cle and est_chiffre(f):
+            sautes += 1
+            print(f"  SAUTE  {rel} (chiffre, et `.vault-pass` est absent)")
+            continue
+        ok, message = charge(f)
         if ok:
             print(f"  ok     {rel}")
         else:
@@ -171,7 +196,16 @@ def main() -> int:
         print("embarques : une apostrophe isolee dans un commentaire, ou un")
         print("`${#...}` que Jinja lit comme un commentaire ouvert.")
         return 1
-    print(f"{len(cibles)} playbook(s) se chargent.")
+    charges = len(cibles) - sautes
+    print(f"{charges} playbook(s) se chargent.")
+    if sautes:
+        # Dit, jamais taise : qui lit cette sortie doit savoir que la moitie du
+        # depot n'a pas ete controlee, et pourquoi.
+        print(
+            f"{sautes} fichier(s) chiffre(s) NON CONTROLES, faute de `.vault-pass`. "
+            "C'est le cas normal en CI,\nou la cle n'a rien a faire ; en local, "
+            "la cle est la et ils sont controles comme les autres."
+        )
     return 0
 
 
