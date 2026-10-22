@@ -41,13 +41,45 @@ from __future__ import annotations
 import subprocess
 import sys
 
-# Ce qu'un verdict mesure, et qui ne doit donc pas bouger dans le commit qui
-# l'inscrit. `labs/` en entier serait trop large : un commit qui corrige UN
-# lab et reinscrit SON verdict est legitime et frequent. Ce qui est interdit,
-# c'est de toucher le COMMUN, qui porte tous les labs a la fois, ou l'outillage
-# qui produit le verdict lui-meme.
-PARTAGE = ("labs/_commun/", "scripts/")
+# Ce qu'un verdict MESURE, et qui ne doit donc pas bouger dans le commit qui
+# l'inscrit.
+#
+# La premiere version n'interdisait que le COMMUN et l'outillage, en jugeant
+# legitime qu'un commit corrige UN lab et reinscrive SON verdict. C'etait une
+# erreur, et elle laissait ouvert exactement le cas qu'aucune mesure ne peut
+# rattraper ensuite : si une pull request squashee retouche un test APRES sa
+# campagne, le commit unique porte les deux, et le squash a DETRUIT
+# l'information qui les distinguait. Ni une date, ni un diff entre deux
+# arbres, ni rien d'autre ne peut plus dire lequel est venu avant.
+#
+# Un controle ne peut donc pas constater cette faute apres coup. Il reste a
+# l'empecher, ce que fait ce hook : le releve se commite SEUL, apres la
+# campagne qui l'a produit.
+#
+# Ce qui est mesure, c'est ce que le cycle JOUE. L'enonce, le scenario et les
+# indices n'en font pas partie : ils ne sont pas executes, et les interdire
+# obligerait a une campagne pour une coquille d'orthographe.
+MESURE = (
+    "labs/_commun/",  # porte tous les labs a la fois
+    "scripts/",  # l'outillage qui produit le verdict
+)
+# Les fichiers d'un lab que le cycle joue, reconnus par leur fin de chemin.
+MESURE_PAR_LAB = (
+    "/lab.yaml",
+    "/setup.yaml",
+    "/cleanup.yaml",
+)
+TESTS_DU_LAB = "/challenge/tests/"
 RELEVE = "validation-labs.json"
+
+
+def mesure_un_verdict(chemin: str) -> bool:
+    """Vrai si ce fichier determine ce qu'un verdict dit."""
+    if chemin.startswith(MESURE):
+        return True
+    if not chemin.startswith("labs/"):
+        return False
+    return TESTS_DU_LAB in chemin or chemin.endswith(MESURE_PAR_LAB)
 
 
 def fichiers_indexes() -> list[str]:
@@ -70,7 +102,7 @@ def main() -> int:
     if RELEVE not in indexes:
         return 0
 
-    fautifs = [f for f in indexes if f.startswith(PARTAGE)]
+    fautifs = [f for f in indexes if mesure_un_verdict(f)]
     if not fautifs:
         return 0
 
