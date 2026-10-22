@@ -115,6 +115,18 @@ repos:
         language: system
         pass_filenames: false
 
+      # Un verdict ne se commite pas avec ce qu'il mesure. Vécu le 2026-10-22 :
+      # une correction de `labs/_commun/` et les verdicts qu'elle rendait
+      # caducs sont partis dans le même commit, et le contrôle de péremption,
+      # qui compare les dates de commit, n'avait plus rien à comparer. Les
+      # vingt et un verdicts sont restés VALIDE alors qu'un défaut du commun
+      # les avait tous périmés.
+      - id: verdicts-et-commun-separes
+        name: les verdicts ne sont pas commités avec ce qu'ils mesurent
+        entry: python3 tests/outils/verdicts_et_commun_separes.py
+        language: system
+        pass_filenames: false
+
       # La CI joue `uvx ruff check .` : sans ce hook, une erreur de lint part
       # en CI au lieu d'être arrêtée au commit. Les catalogues frères le
       # portent tous.
