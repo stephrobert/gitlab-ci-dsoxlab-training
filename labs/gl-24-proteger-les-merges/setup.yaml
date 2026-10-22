@@ -1,0 +1,268 @@
+---
+# Joue par `dsoxlab run` : il pose un pipeline VERT sur un projet qui ne porte
+# AUCUN verrou, et rien d autre. La branche main est ouverte, aucun tag ni
+# aucun environnement ne l est, et la fusion ne demande ni pipeline vert ni
+# discussions resolues. Le job de deploiement cible l environnement
+# `production`, qui existe donc dans la forge.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : apres les labs precedents, il ne reinstalle rien.
+#
+# ECRITURE : ce fichier ne contient AUCUNE apostrophe isolee, et aucune
+# longueur de variable shell du genre dollar-accolade-diese. Les deux font
+# refuser le playbook au chargement (voir _commun/depot.yaml).
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-24-proteger-les-merges
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-24"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+    # Le dernier pipeline qui precede le travail de l apprenant. Il vit hors de
+    # la copie de travail, que l apprenant peut reecrire.
+    etat: "/var/lib/dsoxlab/gl-24"
+
+  tasks:
+    # La copie de travail est testee AVANT le depot commun : c est elle qui dit
+    # si le lab est joue pour la premiere fois ou rejoue. Les verrous ne sont
+    # retires que sur une copie neuve, jamais par-dessus le travail de
+    # l apprenant.
+    - name: La copie de travail existe-t-elle deja ?
+      ansible.builtin.stat:
+        path: "{{ travail }}/{{ projet }}/.git"
+      register: copie_gl24
+
+    - name: Le repertoire des faits du lab
+      ansible.builtin.file:
+        path: "{{ etat }}"
+        state: directory
+        mode: "0755"
+
+    # Le depot commun pousse `main` EN FORCE. Une branche protegee, laissee par
+    # un lab precedent ou par un rejeu sans nettoyage, refuserait ce push.
+    - name: Lever la protection de main d une eventuelle execution precedente
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        if test -n "$ID"; then
+          curl -sS -o /dev/null --header "$H" --request DELETE "$API/projects/$ID/protected_branches/main"
+        fi
+        exit 0
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: false
+      when: not copie_gl24.stat.exists
+
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "main"
+        exiger_absence_pipeline: "{{ not copie_gl24.stat.exists }}"
+        effacer_pipelines: "{{ not copie_gl24.stat.exists }}"
+        attendre_pipeline_depart: false
+        adapter_registre_local: false
+
+    # LE PIPELINE DE DEPART : deux jobs, qui marchent. Le second cible
+    # l environnement `production`, ce qui le cree dans la forge au premier
+    # passage, et ce qu une licence Premium saurait proteger (hors lab). Il ne part
+    # que de la branche par defaut.
+    - name: Un pipeline qui teste puis deploie en production
+      ansible.builtin.copy:
+        dest: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        mode: "0644"
+        content: |
+          stages:
+            - verifier
+            - deployer
+
+          default:
+            image: alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+
+          tester:
+            stage: verifier
+            script:
+              - echo "TESTS-OK"
+
+          deployer-production:
+            stage: deployer
+            environment:
+              name: production
+            rules:
+              - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+            script:
+              - echo "DEPLOIEMENT-PRODUCTION"
+      when: not copie_gl24.stat.exists
+
+    - name: Pousser le pipeline dans la forge
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        AUTH="oauth2:$JETON"
+        git add -A
+        git diff --cached --quiet || git commit -q -m "feat: un pipeline qui teste puis deploie en production"
+        git push -q "http://$AUTH@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      when: not copie_gl24.stat.exists
+      changed_when: true
+      no_log: true
+
+    # Le pipeline de depart doit etre TERMINE avant de rendre la main. Aucun job
+    # manuel ici : `success` est attendu, mais tout etat terminal arrete l
+    # attente, et la mesure qui suit tranche.
+    - name: Attendre le pipeline du dernier commit de main
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+        test -n "$SHA"
+        ETAT=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1" | jq -r '.[0].status // "aucun"')
+        echo "$ETAT"
+        case "$ETAT" in
+          success|failed|canceled|skipped|manual) exit 0 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: pipeline_depart
+      until: pipeline_depart.rc == 0
+      retries: 40
+      delay: 10
+      changed_when: false
+
+    # L ETAT DE DEPART : AUCUN VERROU. Un projet neuf protege `main` de lui-meme
+    # (c est le reglage par defaut de l instance), et un rejeu peut laisser des
+    # tags, un environnement ou des reglages poses. On retire donc tout, sur une
+    # copie neuve, puis la tache suivante le mesure.
+    - name: Retirer tout verrou du projet
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        curl -sS -o /dev/null --header "$H" --request DELETE "$API/projects/$ID/protected_branches/main"
+        for NOM in $(curl -sS --header "$H" "$API/projects/$ID/protected_tags" | jq -r '.[]?.name'); do
+          curl -sS -o /dev/null --header "$H" --request DELETE "$API/projects/$ID/protected_tags/$(printf %s "$NOM" | jq -sRr @uri)"
+        done
+        CODE=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" --request PUT \
+          --data "only_allow_merge_if_pipeline_succeeds=false" \
+          --data "only_allow_merge_if_all_discussions_are_resolved=false" \
+          "$API/projects/$ID")
+        test "$CODE" = "200" || { echo "reglages du projet refuses : HTTP $CODE"; exit 1; }
+        echo "projet sans verrou"
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: true
+      when: not copie_gl24.stat.exists
+
+    # LE SETUP MESURE SON PROPRE ETAT DE DEPART, dans la forge et non dans ses
+    # propres fichiers : le pipeline est vert, l environnement production
+    # existe, et aucun des quatre verrous n est pose.
+    - block:
+        - name: Mesurer l etat de depart
+          ansible.builtin.shell: |
+            set -o pipefail
+            DIAG="/var/tmp/gl-24-diagnostic-depart.txt"
+            mkdir -p "$ETAT"
+            : > "$DIAG"
+            chmod 0644 "$DIAG"
+            # no_log masque la sortie : chaque echec ecrit sa cause dans ce fichier.
+            echec() { echo "$*" >> "$DIAG"; exit 1; }
+            JETON=$(cat /etc/dsoxlab/jeton-api)
+            API="$URL/api/v4"
+            H="PRIVATE-TOKEN: $JETON"
+            ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+            test -n "$ID" || echec "projet introuvable"
+            SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+            PL=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1" | jq -r '.[0].id // empty')
+            test -n "$PL" || echec "aucun pipeline sur le SHA de main ($SHA)"
+            ETAT_PL=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL" | jq -r .status)
+            if [ "$ETAT_PL" != "success" ]; then
+              echo "le pipeline de depart est $ETAT_PL : il devrait etre vert" >> "$DIAG"
+              curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL/jobs" | jq -r '.[] | "  \(.name) \(.status)"' >> "$DIAG"
+              exit 1
+            fi
+            ENV=$(curl -sS --header "$H" "$API/projects/$ID/environments?name=production" | jq -r '.[0].name // empty')
+            test "$ENV" = "production" || echec "environnement production absent apres le pipeline"
+            CODE=$(curl -sS -o /dev/null -w "%{http_code}" --header "$H" "$API/projects/$ID/protected_branches/main")
+            test "$CODE" = "404" || echec "main est deja protegee (HTTP $CODE)"
+            N=$(curl -sS --header "$H" "$API/projects/$ID/protected_tags" | jq 'length')
+            test "$N" = "0" || echec "$N tag(s) deja proteges"
+            REP=$(curl -sS --header "$H" "$API/projects/$ID")
+            test "$(echo "$REP" | jq -r .only_allow_merge_if_pipeline_succeeds)" = "false" || echec "pipeline vert deja exige"
+            test "$(echo "$REP" | jq -r .only_allow_merge_if_all_discussions_are_resolved)" = "false" || echec "discussions resolues deja exigees"
+            echo "$PL" > "$ETAT/depart-pipeline"
+            chmod 0644 "$ETAT/depart-pipeline"
+            echo "etat de depart : pipeline $PL vert, aucun verrou"
+          args:
+            executable: /bin/bash
+          environment:
+            PROJET: "{{ projet }}"
+            URL: "{{ gitlab_url }}"
+            ETAT: "{{ etat }}"
+          changed_when: false
+          no_log: true
+      rescue:
+        - name: Lire le diagnostic de l etat de depart
+          ansible.builtin.command: cat /var/tmp/gl-24-diagnostic-depart.txt
+          register: diagnostic
+          changed_when: false
+          failed_when: false
+        - name: La cause de l echec de la mesure
+          ansible.builtin.fail:
+            msg: "{{ diagnostic.stdout_lines | default(['fichier de diagnostic absent']) }}"
+      when: not copie_gl24.stat.exists
+
+    - name: Les faits de la situation
+      ansible.builtin.copy:
+        dest: "{{ travail }}/NOTE-VERROUS.txt"
+        mode: "0644"
+        content: |
+          Ce que la situation vous donne deja.
+
+          Le projet pipeline-craft porte un pipeline vert : un job tester, puis
+          un job deployer-production qui cible l environnement production.
+          Aucun verrou n est pose : tout Developer peut pousser sur main, creer
+          un tag et fusionner sans pipeline vert.
+
+          Les verrous sont des REGLAGES DE LA FORGE. Ils se posent sous
+          Settings (Repository, CI/CD, Merge requests), ou par l API :
+
+            - POST /projects/:id/protected_branches        branche protegee ;
+            - POST /projects/:id/protected_tags            tag protege ;
+            - PUT  /projects/:id                           reglages de fusion
+              (only_allow_merge_if_pipeline_succeeds,
+              only_allow_merge_if_all_discussions_are_resolved).
+
+          Niveaux d acces : 0 personne, 30 Developer, 40 Maintainer.
+
+          Un jeton personnel de la VM, root, est lisible dans
+          /etc/dsoxlab/jeton-api : il sert a appeler l API depuis la machine
+          sans jamais l ecrire sur une ligne de commande.

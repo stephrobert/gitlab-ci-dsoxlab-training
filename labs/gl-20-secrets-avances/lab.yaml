@@ -1,0 +1,26 @@
+id: gl-20-secrets-avances
+title: Secrets renewed without breaking the pipeline
+level: l1
+description: "A green pipeline uses an unprotected, unmasked service token and rewrites an SSH key by hand. Protect and mask the token, turn the key into a file-type variable and adapt the job, then renew the token without interrupting the service: the new one first, proved by a pipeline, and only then the revocation of the old one. Graded on the state the forge holds: variable settings, revoked and active access tokens, executed jobs and their logs."
+skills:
+- gitlab-ci
+- secrets
+- variables-protegees
+- renouvellement
+distros:
+- ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/
+lab_type: lab
+estimated_time: 40m
+runtime:
+  type: vm
+  session: local
+  targets:
+  - name: gitlab
+    host: gitlab-1.lab
+    label_en: Ubuntu 24.04, GitLab CE and its runner
+    label_fr: Ubuntu 24.04, GitLab CE et son runner
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

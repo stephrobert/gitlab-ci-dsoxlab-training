@@ -48,7 +48,7 @@ sections:
   - id: securiser
     title: Sécuriser et outiller
     description: >-
-      Pas encore écrit. C'est le trou que l'audit du 2026-10-21 a trouvé :
-      tout le niveau C4 de la formation, sept leçons de sécurité et trois
-      d'outillage, n'a aucune mise en pratique. Les labs 20 à 25 du plan
-      viennent ici.
+      Rejouer une attaque sur un pipeline et la bloquer, activer les scanners
+      et lire leurs rapports, signer une image et refuser celles qui ne le sont
+      pas, protéger ce qui fusionne et ce qui déploie, durcir le runner, et
+      auditer sa propre chaîne sans licence payante.

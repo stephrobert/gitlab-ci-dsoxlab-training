@@ -1,0 +1,23 @@
+id: gl-22-scanner-les-images
+title: Scan the image, and stop shipping a critical flaw
+level: l1
+description: 'À remplir : ce que l''apprenant saura faire à la fin.'
+skills:
+- a-remplir
+distros:
+- ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/
+lab_type: lab
+estimated_time: 40m
+runtime:
+  type: vm
+  session: local
+  targets:
+  - name: gitlab
+    host: gitlab-1.lab
+    label_en: Ubuntu 24.04, GitLab CE and its runner
+    label_fr: Ubuntu 24.04, GitLab CE et son runner
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

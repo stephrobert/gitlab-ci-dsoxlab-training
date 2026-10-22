@@ -1,0 +1,24 @@
+id: gl-24-proteger-les-merges
+title: Protect what merges, and what deploys
+level: l1
+description: "A green pipeline deploys to production from a project with no lock at all: anyone can push to main, create a release tag, and merge without a green pipeline. Protect the main branch and the release tags, then require a successful pipeline and resolved discussions before any merge, and prove the locks still let a legitimate deployment through. Graded on the settings the forge holds, read from its API, never on a file. The approval rule and the protected environment are Premium features and are not part of the lab."
+skills:
+- gitlab-ci
+- ci.pipeline.secure
+distros:
+- ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/branches-protegees/
+lab_type: lab
+estimated_time: 40m
+runtime:
+  type: vm
+  session: local
+  targets:
+  - name: gitlab
+    host: gitlab-1.lab
+    label_en: Ubuntu 24.04, GitLab CE and its runner
+    label_fr: Ubuntu 24.04, GitLab CE et son runner
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

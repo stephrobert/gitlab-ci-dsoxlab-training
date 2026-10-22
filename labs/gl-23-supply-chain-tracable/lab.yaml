@@ -1,0 +1,27 @@
+id: gl-23-supply-chain-tracable
+title: Sign the image, and refuse the ones that are not
+level: l1
+description: "A pipeline publishes its image and says nothing about it, and an unsigned image sits in the same registry. Inventory the image with Syft (CycloneDX SBOM kept as an artifact), sign it by digest with cosign, attach a signed provenance attestation, then add a verification job that fails on an unsigned image before the deployment, and prove it. Graded on what the forge and the registry saw: the SBOM artifact, a signature and an attestation that cosign verifies itself, and a pipeline that really failed on the unsigned image."
+skills:
+- gitlab-ci
+- supply-chain
+- sbom
+- cosign
+- attestation
+distros:
+- ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/
+lab_type: lab
+estimated_time: 50m
+runtime:
+  type: vm
+  session: local
+  targets:
+  - name: gitlab
+    host: gitlab-1.lab
+    label_en: Ubuntu 24.04, GitLab CE and its runner
+    label_fr: Ubuntu 24.04, GitLab CE et son runner
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

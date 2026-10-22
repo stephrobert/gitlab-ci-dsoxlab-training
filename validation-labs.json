@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 11:07:09",
+  "genere_le": "2026-10-22 19:52:23",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -231,6 +231,84 @@
       "pourquoi": "",
       "date": "2026-10-22"
     },
+    "gl-20-secrets-avances": {
+      "id": "gl-20-secrets-avances",
+      "chemin": "gl-20-secrets-avances",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 119.6,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "6a7f2f92bf0546b1cec2fb5b60edf463fa0fcaa898389556c289edbe1a5d4ed7"
+    },
+    "gl-21-activer-les-scanners": {
+      "id": "gl-21-activer-les-scanners",
+      "chemin": "gl-21-activer-les-scanners",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 206.5,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "60ba2b4876e4c6957fd612ae584c7b0aecda58da750e14ddbe72019991f77353"
+    },
+    "gl-22-scanner-les-images": {
+      "id": "gl-22-scanner-les-images",
+      "chemin": "gl-22-scanner-les-images",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 331.7,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "7609d58e09eebb22419af7e555f134fb9ce36960acc473696a22ad377f2e6e9b"
+    },
+    "gl-23-supply-chain-tracable": {
+      "id": "gl-23-supply-chain-tracable",
+      "chemin": "gl-23-supply-chain-tracable",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 494.1,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "d135038bd9ff5c9c424f3f4777a2d0bc26cd5c7991f7cd143473818d8772e144"
+    },
+    "gl-24-proteger-les-merges": {
+      "id": "gl-24-proteger-les-merges",
+      "chemin": "gl-24-proteger-les-merges",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 104.7,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "9f4b6c1878c8fa7569149a89781bfb8472c8b731d48d6da61f66b5946b23ac52"
+    },
+    "gl-25-durcir-le-pipeline": {
+      "id": "gl-25-durcir-le-pipeline",
+      "chemin": "gl-25-durcir-le-pipeline",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "6/6",
+      "duree_s": 119.7,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "d6c841467ac3ed7d9be7b0fe288cf56811e303e4e9496b47375710e63a822c1a"
+    },
     "gl-ep1-un-pipeline-qui-dit-vrai": {
       "id": "gl-ep1-un-pipeline-qui-dit-vrai",
       "chemin": "gl-ep1-un-pipeline-qui-dit-vrai",
@@ -254,6 +332,19 @@
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
+    },
+    "gl-ep3-un-pipeline-qu-on-peut-auditer": {
+      "id": "gl-ep3-un-pipeline-qu-on-peut-auditer",
+      "chemin": "gl-ep3-un-pipeline-qu-on-peut-auditer",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "5/5",
+      "duree_s": 114.4,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "c5f87befa8f7c887acab6f30e2ef49da41cabe0802558ca718fc0447735462cc"
     }
   }
 }
