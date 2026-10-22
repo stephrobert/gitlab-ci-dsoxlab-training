@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 08:40:09",
+  "genere_le": "2026-10-22 10:28:04",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -10,10 +10,10 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 106.9,
+      "duree_s": 140.9,
       "traces": [],
       "pourquoi": "",
-      "date": "2026-10-21"
+      "date": "2026-10-22"
     },
     "gl-02-lire-un-echec": {
       "id": "gl-02-lire-un-echec",
@@ -22,10 +22,10 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 102.1,
+      "duree_s": 128.4,
       "traces": [],
       "pourquoi": "",
-      "date": "2026-10-21"
+      "date": "2026-10-22"
     },
     "gl-03-images-et-runners": {
       "id": "gl-03-images-et-runners",
@@ -34,10 +34,10 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 129.5,
+      "duree_s": 139.0,
       "traces": [],
       "pourquoi": "",
-      "date": "2026-10-21"
+      "date": "2026-10-22"
     },
     "gl-04-artifacts-et-cache": {
       "id": "gl-04-artifacts-et-cache",
@@ -46,7 +46,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "3/3",
-      "duree_s": 205.5,
+      "duree_s": 201.9,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -58,7 +58,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "3/3",
-      "duree_s": 158.4,
+      "duree_s": 175.6,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -70,7 +70,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "3/3",
-      "duree_s": 199.0,
+      "duree_s": 188.0,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -82,7 +82,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 142.2,
+      "duree_s": 141.2,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -94,7 +94,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 281.8,
+      "duree_s": 204.0,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -106,7 +106,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "3/3",
-      "duree_s": 207.7,
+      "duree_s": 192.0,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -118,7 +118,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "2/2",
-      "duree_s": 199.2,
+      "duree_s": 197.5,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -130,7 +130,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "2/2",
-      "duree_s": 127.2,
+      "duree_s": 126.4,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -142,7 +142,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "2/2",
-      "duree_s": 235.9,
+      "duree_s": 224.3,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -154,7 +154,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "1/1",
-      "duree_s": 158.6,
+      "duree_s": 155.7,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -166,7 +166,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "1/1",
-      "duree_s": 159.9,
+      "duree_s": 157.8,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -178,7 +178,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "2/2",
-      "duree_s": 196.5,
+      "duree_s": 193.4,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -190,7 +190,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "2/2",
-      "duree_s": 213.1,
+      "duree_s": 203.2,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -202,7 +202,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "2/2",
-      "duree_s": 237.0,
+      "duree_s": 221.0,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -214,7 +214,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "3/3",
-      "duree_s": 159.2,
+      "duree_s": 157.7,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -226,7 +226,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "6/6",
-      "duree_s": 173.2,
+      "duree_s": 146.7,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -238,7 +238,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 221.8,
+      "duree_s": 220.0,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
@@ -250,7 +250,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 115.9,
+      "duree_s": 114.0,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
