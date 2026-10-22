@@ -1,0 +1,3 @@
+id: gl-14-externaliser-les-jobs
+title: "Un orchestrateur, et un fichier par étape"
+description: "Le pipeline est propre et long de quatre-vingts lignes : chaque modification oblige à tout relire pour trouver les trois lignes qui comptent. Sortir les jobs dans des fichiers inclus, et garder un orchestrateur qui répond à deux questions. La note porte sur les inclusions que GitLab rapporte."

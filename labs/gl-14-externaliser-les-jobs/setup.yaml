@@ -1,0 +1,35 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline factorisé mais monolithique.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-14-externaliser-les-jobs
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-14"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-14` est l'aboutissement du lab 13 : un fichier sain, sans
+    # duplication, et long. Tout y est, des stages aux déploiements, et chaque
+    # modification oblige à relire quatre-vingts lignes pour trouver les trois
+    # qui concernent le sujet.
+    #
+    # Rien n'est cassé, une fois de plus, et c'est le sujet : un fichier long
+    # ne casse rien, il rend chaque changement plus coûteux à relire qu'à
+    # écrire.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-14"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true

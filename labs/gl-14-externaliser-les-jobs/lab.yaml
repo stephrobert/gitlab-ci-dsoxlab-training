@@ -1,0 +1,30 @@
+# Lab gl-14-externaliser-les-jobs. Les champs marqués REQUIS sont exigés par le validator :
+# sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-14-externaliser-les-jobs              # REQUIS
+title: "One orchestrator, one file per stage"   # REQUIS
+level: c3                     # REQUIS
+description: "The pipeline is clean and eighty lines long: every change means rereading all of it to find the three lines that matter. Split the jobs into included files and keep an orchestrator that answers two questions. Graded on the inclusions GitLab reports."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - include
+  - templates
+  - refactoring
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-14-templates-include/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 35m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

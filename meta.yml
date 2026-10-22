@@ -69,6 +69,7 @@ sections:
       - gl-11-diagnostiquer-un-job-bloque
       - gl-12-accelerer-le-pipeline
       - gl-13-factoriser-le-yaml
+      - gl-14-externaliser-les-jobs
 
   - id: livrer
     title: "Deliver"

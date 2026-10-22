@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 07:05:56",
+  "genere_le": "2026-10-22 07:12:57",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -155,6 +155,18 @@
       "score_apres": 100,
       "tests": "1/1",
       "duree_s": 158.6,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-14-externaliser-les-jobs": {
+      "id": "gl-14-externaliser-les-jobs",
+      "chemin": "gl-14-externaliser-les-jobs",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "1/1",
+      "duree_s": 159.8,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
