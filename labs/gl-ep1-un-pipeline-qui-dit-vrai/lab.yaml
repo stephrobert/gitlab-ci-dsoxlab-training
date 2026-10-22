@@ -1,0 +1,35 @@
+# Épreuve de fin de niveau c1. Les champs marqués REQUIS sont exigés par le
+# validator : sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-ep1-un-pipeline-qui-dit-vrai          # REQUIS
+title: "Level exam: a pipeline that tells the truth"   # REQUIS
+level: c1                     # REQUIS
+# `challenge` et non `lab` : une epreuve se passe sans pas a pas et sans
+# indice. Les defauts ne sont pas nommes, et c'est le sujet.
+lab_type: challenge
+difficulty: intermediate
+description: "The pipeline is green and it lies. A test job is allowed to fail, its report is unreadable, a token sits in plain text in the configuration, and production deploys from any branch. Four defects, none of them named. Make the pipeline tell the truth, graded on what the forge shows."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - rules
+  - artifacts
+  - ci-variables
+  - pipeline-security
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/   # REQUIS, http(s)
+estimated_time: 60m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  security: true
+  persistence_after_reboot: false

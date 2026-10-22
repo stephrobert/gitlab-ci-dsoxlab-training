@@ -1,0 +1,222 @@
+---
+# Joué par `dsoxlab run` : il pose une chaîne qui prétend livrer sans laisser
+# de trace.
+#
+# COMME POUR L'EPREUVE DU NIVEAU 1, le pipeline est ecrit ici et non pris dans
+# une branche `starter/` : son enonce est une combinaison de defauts que je
+# choisis, et aucune branche amont ne la porte.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : apres les labs precedents, il ne reinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer l_epreuve gl-ep2-une-livraison-tracable
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-ep2"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    - name: Le projet de l_epreuve dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        # N'importe quelle branche portant l'application complete convient,
+        # puisque le pipeline est reecrit juste apres. `starter/lab-11` ferme
+        # le niveau c2.
+        branche_source: "starter/lab-11"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        # ATTENDRE UN ETAT TERMINAL SERAIT ATTENDRE SANS FIN, et c'est voulu :
+        # le defaut 3 laisse un job en attente d'un runner qui n'existe pas.
+        # Un pipeline dont un job reste `pending` n'atteint jamais d'etat
+        # terminal, et le lab 08 a deja coute onze minutes d'attente pour une
+        # erreur du meme genre.
+        attendre_pipeline_depart: false
+        adapter_registre_local: false
+
+    # LES QUATRE DEFAUTS DE L'EPREUVE. Aucun ne fait echouer un job : la chaine
+    # ne se plaint de rien, elle ne laisse simplement aucune trace de ce
+    # qu'elle a livre.
+    - name: La chaine qui livre sans laisser de trace
+      ansible.builtin.copy:
+        dest: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        mode: "0644"
+        content: |
+          stages:
+            - test
+            - build
+            - deploy
+
+          workflow:
+            rules:
+              - if: $CI_COMMIT_BRANCH
+              - if: $CI_COMMIT_TAG
+
+          variables:
+            PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+
+          pytest:
+            stage: test
+            image: python:3.12-slim
+            # DEFAUT 3 : ce job demande un runner portant une etiquette qui
+            # n'existe sur aucun runner de cette forge. Il ne tombe pas en
+            # erreur : il attend, et le pipeline n'atteint jamais sa fin.
+            tags:
+              - runner-de-la-prod
+            before_script:
+              - pip install -r requirements-dev.txt
+            script:
+              - pytest -v --junitxml=report.xml
+            artifacts:
+              when: always
+              reports:
+                junit: report.xml
+              expire_in: 7 days
+
+          docker-build:
+            stage: build
+            image: docker:27
+            services:
+              - name: docker:27-dind
+                alias: docker
+                command: ["--insecure-registry=gitlab-1.lab:5050"]
+            variables:
+              DOCKER_TLS_CERTDIR: "/certs"
+            needs: []
+            # DEFAUT 2 : l'image est construite et rien de plus. Elle meurt
+            # avec le conteneur du job, et aucun deploiement ne pourra jamais
+            # reposer sur elle.
+            script:
+              - docker build -t $CI_REGISTRY_IMAGE:$CI_COMMIT_SHORT_SHA .
+              - docker image ls "$CI_REGISTRY_IMAGE"
+
+          deploy-staging:
+            stage: deploy
+            image: alpine:3.20
+            needs:
+              - docker-build
+            # DEFAUT 1 : aucun `environment:`. GitLab ne sait donc pas qu'un
+            # environnement existe, ni ce qui y tourne, ni depuis quand. La
+            # page des environnements du projet reste vide.
+            script:
+              - echo "Deploiement de $CI_COMMIT_SHORT_SHA en recette..."
+              - ./scripts/deploy-demo.sh staging
+            rules:
+              - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+          deploy-production:
+            stage: deploy
+            image: alpine:3.20
+            needs:
+              - docker-build
+            script:
+              - echo "Deploiement de $CI_COMMIT_SHORT_SHA en production..."
+              - ./scripts/deploy-demo.sh production
+            # DEFAUT 4 : la production part des que la branche par defaut
+            # bouge, sans decision de personne et sans environnement declare.
+            rules:
+              - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+    - name: Pousser le pipeline de l_epreuve
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        git config user.email "formateur@dsoxlab.local"
+        git config user.name "Enonce"
+        git add -A
+        git diff --cached --quiet || git commit -q -m "ci: le pipeline de l epreuve"
+        git push -q --force "http://oauth2:$JETON@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      changed_when: true
+      no_log: true
+
+    # L'ETAT DE DEPART SE MESURE. Le `no_log` ci-dessus cache les erreurs du
+    # push : ce controle-ci parle, et il verifie que les defauts sont bien la.
+    - name: GitLab accepte l_enonce, et les defauts sont en place
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        REP=$(curl -sS --header "$H" "$API/projects/$ID/ci/lint?dry_run=true&ref=main")
+        if ! echo "$REP" | jq -e '.valid == true' >/dev/null; then
+          echo "GitLab refuse l enonce :"
+          echo "$REP" | jq -r '.errors[]? | "  " + .'
+          exit 1
+        fi
+        echo "$REP" | jq -e '.merged_yaml | test("runner-de-la-prod")' >/dev/null \
+          || { echo "le defaut 3 (etiquette de runner introuvable) a disparu"; exit 1; }
+        if echo "$REP" | jq -e '.merged_yaml | test("environment")' >/dev/null; then
+          echo "le defaut 1 (aucun environnement) a disparu"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: false
+
+    # Les traces d'un passage precedent feraient demarrer l'epreuve a moitie
+    # faite : environnements et etiquettes du registre sont ce que les tests
+    # comptent. Ils partent avec le projet, mais l'epreuve se rejoue aussi sans
+    # suppression du projet, et le controle doit alors parler.
+    - name: Ni environnement ni image publiee ne doivent preexister
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        ENVS=$(curl -sS --header "$H" "$API/projects/$ID/environments" | jq '[.[]?] | length')
+        DEPOTS=$(curl -sS --header "$H" "$API/projects/$ID/registry/repositories" | jq '[.[]?] | length')
+        echo "$ENVS environnement(s), $DEPOTS depot(s) d image"
+        test "$ENVS" -eq 0
+        test "$DEPOTS" -eq 0
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: false
+
+    # LE JOB BLOQUE DOIT L'ETRE, et cela se mesure. Attendre un etat terminal
+    # est exclu, mais ne rien verifier laisserait passer un enonce dont le
+    # troisieme defaut ne se produit pas. On attend donc que le job existe et
+    # qu'il soit en attente, ce qui arrive en quelques secondes.
+    - name: Le job de test doit rester en attente d_un runner
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        PID=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&per_page=1" \
+          | jq -r '.[0].id // empty')
+        test -n "$PID"
+        ETAT=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PID/jobs?per_page=100" \
+          | jq -r '.[] | select(.name == "pytest") | .status')
+        echo "pytest : ${ETAT:-absent}"
+        test "$ETAT" = "pending" || test "$ETAT" = "created"
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: attente_bloquee
+      until: attente_bloquee.rc == 0
+      retries: 12
+      delay: 10
+      changed_when: false

@@ -1,0 +1,17 @@
+---
+# Joué par `dsoxlab clean` : il remet la situation de l'épreuve, pour qu'elle
+# se repasse à l'identique. Les environnements et les étiquettes du registre
+# partent avec le projet, que `_commun/nettoyer.yaml` supprime définitivement
+# après avoir retiré les étiquettes, sans quoi GitLab refuse la suppression.
+- name: Nettoyer l_epreuve gl-ep2-une-livraison-tracable
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-ep2"
+
+  tasks:
+    - name: Le projet et la copie de travail partent
+      ansible.builtin.include_tasks: ../_commun/nettoyer.yaml

@@ -1,0 +1,217 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline vert qui ne garantit rien.
+#
+# POURQUOI CE SETUP ECRIT SON PROPRE `.gitlab-ci.yml`, alors que tous les labs
+# du catalogue prennent le leur dans une branche `starter/` du depot fil rouge.
+# Une epreuve n'est pas la suite d'un lab : son enonce est un pipeline dont je
+# choisis chaque defaut, et aucune branche amont ne porte cette combinaison. Le
+# depot apporte donc l'application, ses tests et son script de deploiement, et
+# le pipeline est fabrique ici.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : apres les labs precedents, il ne reinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer l_epreuve gl-ep1-un-pipeline-qui-dit-vrai
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-ep1"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    - name: Le projet de l_epreuve dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        # N'importe quelle branche portant l'application complete convient,
+        # puisque le pipeline est reecrit juste apres. `starter/lab-07` est
+        # retenue parce qu'elle ferme le niveau c1.
+        branche_source: "starter/lab-07"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        # Le pipeline du depart est remplace ci-dessous : attendre celui de la
+        # branche amont ferait patienter sur un etat qui ne sera pas celui de
+        # l'epreuve.
+        attendre_pipeline_depart: false
+        adapter_registre_local: false
+
+    # LES QUATRE DEFAUTS DE L'EPREUVE, et chacun produit un pipeline VERT.
+    # C'est le fil de l'enonce : rien ne signale un probleme, et pourtant le
+    # pipeline ne garantit rien de ce qu'il affiche.
+    - name: Le pipeline vert qui ne garantit rien
+      ansible.builtin.copy:
+        dest: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        mode: "0644"
+        content: |
+          stages:
+            - lint
+            - test
+            - deploy
+
+          workflow:
+            rules:
+              - if: $CI_MERGE_REQUEST_IID
+              - if: $CI_COMMIT_BRANCH
+              - if: $CI_COMMIT_TAG
+
+          variables:
+            PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+            # DEFAUT 3 : un jeton ecrit en clair dans un fichier versionne.
+            # Tout le monde y a acces, il apparait dans l'historique, et le
+            # revoquer demande de modifier le depot.
+            DEPLOY_TOKEN: "glpat-7Hk2mQvX9rLtZ3nB4wYs"
+
+          ruff-lint:
+            stage: lint
+            image: python:3.12-slim
+            cache:
+              key:
+                files:
+                  - requirements-dev.txt
+              paths:
+                - .pip-cache/
+              policy: pull
+            before_script:
+              - pip install ruff
+            script:
+              - ruff check app/ tests/
+
+          pytest:
+            stage: test
+            image: python:3.12-slim
+            cache:
+              key:
+                files:
+                  - requirements-dev.txt
+              paths:
+                - .pip-cache/
+            before_script:
+              - pip install -r requirements-dev.txt
+            script:
+              - pytest -v --junitxml=report.xml
+            # DEFAUT 1 : le job de test a le droit d'echouer. Le pipeline
+            # restera vert quoi que disent les tests, donc il ne dit plus rien
+            # de la sante du code.
+            allow_failure: true
+            artifacts:
+              when: always
+              # DEFAUT 2 : le rapport est declare comme un simple fichier. Il
+              # est telechargeable, et GitLab n'en lit pas une ligne : ni
+              # compte de tests dans le pipeline, ni rien dans la demande de
+              # fusion.
+              paths:
+                - report.xml
+              expire_in: 7 days
+
+          deploy-staging:
+            stage: deploy
+            image: alpine:3.20
+            script:
+              - echo "Deploiement de $CI_COMMIT_SHORT_SHA en recette..."
+              - ./scripts/deploy-demo.sh staging
+
+          deploy-production:
+            stage: deploy
+            image: alpine:3.20
+            script:
+              - echo "Deploiement de $CI_COMMIT_SHORT_SHA en production..."
+              - ./scripts/deploy-demo.sh production
+            # DEFAUT 4 : aucune regle. Le deploiement de production part donc
+            # sur TOUTE branche, sans decision de personne.
+
+    - name: Pousser le pipeline de l_epreuve
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        git config user.email "formateur@dsoxlab.local"
+        git config user.name "Enonce"
+        git add -A
+        git diff --cached --quiet || git commit -q -m "ci: le pipeline de l epreuve"
+        git push -q --force "http://oauth2:$JETON@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      changed_when: true
+      no_log: true
+
+    # L'ETAT DE DEPART SE MESURE, IL NE SE SUPPOSE PAS. Un enonce qui serait
+    # deja a moitie juste ferait une epreuve sans objet, et le `no_log`
+    # ci-dessus cache les erreurs du push : ce controle-ci parle.
+    - name: GitLab accepte l_enonce, et le pipeline part
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        REP=$(curl -sS --header "$H" "$API/projects/$ID/ci/lint?dry_run=true&ref=main")
+        if ! echo "$REP" | jq -e '.valid == true' >/dev/null; then
+          echo "GitLab refuse l enonce :"
+          echo "$REP" | jq -r '.errors[]? | "  " + .'
+          exit 1
+        fi
+        # Les quatre defauts doivent etre la, sinon l'epreuve n'en est pas une.
+        echo "$REP" | jq -e '.merged_yaml | test("allow_failure")' >/dev/null \
+          || { echo "le defaut 1 (allow_failure) a disparu"; exit 1; }
+        echo "$REP" | jq -e '.merged_yaml | test("glpat-")' >/dev/null \
+          || { echo "le defaut 3 (jeton en clair) a disparu"; exit 1; }
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: false
+
+    - name: Aucune variable de projet ne doit preexister
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        for CLE in $(curl -sS --header "$H" "$API/projects/$ID/variables?per_page=100" \
+          | jq -r '.[]?.key'); do
+          curl -sS --header "$H" --request DELETE "$API/projects/$ID/variables/$CLE" >/dev/null
+        done
+        N=$(curl -sS --header "$H" "$API/projects/$ID/variables" | jq '[.[]?] | length')
+        echo "$N variable(s) de projet"
+        test "$N" -eq 0
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: true
+
+    - name: Attendre que le pipeline de l_enonce soit termine
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        ETAT=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&per_page=1" \
+          | jq -r '.[0].status // "aucun"')
+        echo "$ETAT"
+        case "$ETAT" in
+          success|failed|canceled|skipped|manual) exit 0 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: attente
+      until: attente.rc == 0
+      retries: 60
+      delay: 15
+      changed_when: false

@@ -1,0 +1,3 @@
+id: gl-ep2-une-livraison-tracable
+title: "Épreuve de niveau : une livraison qu'on peut retracer"
+description: "La chaîne prétend livrer et ne laisse aucune trace : GitLab ne connaît aucun environnement, l'image ne sort jamais du runner, un job attend sans fin un runner qui n'existe pas, et la production part sans que personne ne décide. Quatre défauts, aucun n'est nommé. Rendre la livraison traçable, la note se prenant sur ce que la forge montre."

@@ -63,6 +63,7 @@ sections:
       - gl-05-sortir-les-secrets
       - gl-06-controler-execution
       - gl-07-valider-avant-de-pousser
+      - gl-ep1-un-pipeline-qui-dit-vrai
 
   - id: livrer
     title: "Deliver"
@@ -75,6 +76,7 @@ sections:
       - gl-09-publier-au-registre
       - gl-10-rapports-de-qualite
       - gl-11-diagnostiquer-un-job-bloque
+      - gl-ep2-une-livraison-tracable
 
   - id: industrialiser
     title: "Industrialise"

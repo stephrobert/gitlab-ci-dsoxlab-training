@@ -67,6 +67,67 @@ def api(host, chemin: str, params: str = "", brut: bool = False) -> object | Non
         return None
 
 
+def api_ecrire(
+    host, methode: str, chemin: str, champs: dict[str, str] | None = None
+) -> tuple[int, object | None]:
+    """Ecrit dans l'API GitLab depuis la VM : POST, PUT ou DELETE.
+
+    Rend le couple (code HTTP, corps decode). Le corps vaut None quand la
+    reponse est vide, ce qui est normal sur un DELETE.
+
+    POURQUOI UN TEST ECRIT PARFOIS. Certaines proprietes d'un pipeline ne se
+    lisent nulle part : savoir si une branche de travail declenche un
+    deploiement demande de pousser une branche et de regarder ce que la forge
+    en fait. Les regles se combinent, le bloc `workflow:` peut en annuler une,
+    et seule l'evaluation du serveur tranche.
+
+    POURQUOI PAR L'API ET NON PAR GIT, mesure le 2026-10-22. La copie de
+    travail de la VM vit dans `/opt/dsoxlab`, cree par un playbook en
+    `become: true` et donc possedee par root, alors que les tests tournent en
+    ssh sous un compte ordinaire. Un `git commit` y echoue sur les droits, et
+    l'epreuve du niveau 1 est sortie ROUGE pour cette seule raison. L'API ne
+    touche pas au disque.
+
+    Les champs sont passes en formulaire (`--data-urlencode`), ce qui evite
+    d'avoir a construire du JSON dans une ligne de commande.
+
+    LIMITE A CONNAITRE, mesuree le 2026-10-22 : un corps de formulaire ne sait
+    pas porter de TABLEAU. `POST /repository/commits`, qui attend un tableau
+    d'actions, repond donc « 400 Bad request - actions must be an array », et
+    la forme `actions[0][action]=…` n'y change rien. Pour un commit d'un seul
+    fichier, `POST /repository/files/:chemin` fait l'affaire avec des champs
+    simples. Pour un vrai tableau, il faudra passer du JSON par fichier.
+    """
+    url = f"{URL}/api/v4{chemin}"
+    morceaux = [
+        "JETON=$(cat /etc/dsoxlab/jeton-api 2>/dev/null); "
+        '[ -n "$JETON" ] || exit 64; '
+        "curl -sS --max-time 30 -o /tmp/reponse-api -w '%{http_code}' "
+        f"-X {methode} "
+        '-H "PRIVATE-TOKEN: $JETON"'
+    ]
+    for cle, valeur in (champs or {}).items():
+        morceaux.append(f"--data-urlencode {shlex.quote(f'{cle}={valeur}')}")
+    morceaux.append(shlex.quote(url))
+    morceaux.append("; echo; cat /tmp/reponse-api; rm -f /tmp/reponse-api")
+
+    r = host.run(" ".join(morceaux))
+    if r.rc != 0:
+        return 0, None
+    # Le code HTTP est sur la premiere ligne, le corps sur les suivantes.
+    tete, _, corps = r.stdout.partition("\n")
+    try:
+        code = int(tete.strip())
+    except ValueError:
+        return 0, None
+    if not corps.strip():
+        return code, None
+    try:
+        return code, json.loads(corps)
+    except json.JSONDecodeError:
+        return code, corps
+
+
 def lint_configuration(host, projet_id: int, ref: str = "main") -> dict | None:
     """Ce que le linter CI de GitLab dit de la configuration de la branche.
 

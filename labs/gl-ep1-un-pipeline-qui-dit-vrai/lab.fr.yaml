@@ -1,0 +1,3 @@
+id: gl-ep1-un-pipeline-qui-dit-vrai
+title: "Épreuve de niveau : un pipeline qui dit vrai"
+description: "Le pipeline est vert, et il ment. Un job de test a le droit d'échouer, son rapport est illisible, un jeton est écrit en clair dans la configuration, et la production se déploie depuis n'importe quelle branche. Quatre défauts, aucun n'est nommé. Rendre le pipeline honnête, la note se prenant sur ce que la forge montre."

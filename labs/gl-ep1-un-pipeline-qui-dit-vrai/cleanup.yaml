@@ -1,0 +1,16 @@
+---
+# Joué par `dsoxlab clean` : il remet la situation de l'épreuve, pour qu'elle
+# se repasse à l'identique. Les variables de projet et les branches de travail
+# partent avec le projet, que `_commun/nettoyer.yaml` supprime définitivement.
+- name: Nettoyer l_epreuve gl-ep1-un-pipeline-qui-dit-vrai
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-ep1"
+
+  tasks:
+    - name: Le projet et la copie de travail partent
+      ansible.builtin.include_tasks: ../_commun/nettoyer.yaml

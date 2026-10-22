@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 08:12:28",
+  "genere_le": "2026-10-22 08:40:09",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -227,6 +227,30 @@
       "score_apres": 100,
       "tests": "6/6",
       "duree_s": 173.2,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-ep1-un-pipeline-qui-dit-vrai": {
+      "id": "gl-ep1-un-pipeline-qui-dit-vrai",
+      "chemin": "gl-ep1-un-pipeline-qui-dit-vrai",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 221.8,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-ep2-une-livraison-tracable": {
+      "id": "gl-ep2-une-livraison-tracable",
+      "chemin": "gl-ep2-une-livraison-tracable",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "4/4",
+      "duree_s": 115.9,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"

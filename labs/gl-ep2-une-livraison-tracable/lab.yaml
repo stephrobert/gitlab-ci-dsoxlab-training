@@ -1,0 +1,34 @@
+# Épreuve de fin de niveau c2. Les champs marqués REQUIS sont exigés par le
+# validator : sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-ep2-une-livraison-tracable            # REQUIS
+title: "Level exam: a delivery you can trace"          # REQUIS
+level: c2                     # REQUIS
+# `challenge` et non `lab` : une epreuve se passe sans pas a pas et sans
+# indice. Les defauts ne sont pas nommes, et c'est le sujet.
+lab_type: challenge
+difficulty: intermediate
+description: "The chain claims to deliver and leaves no trace: GitLab knows of no environment, the image never leaves the runner, one job waits forever for a runner that does not exist, and production ships with nobody deciding. Four defects, none of them named. Make the delivery traceable, graded on what the forge shows."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - environments
+  - container-registry
+  - runners
+  - deployments
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/   # REQUIS, http(s)
+estimated_time: 60m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE, its runner and its registry"
+      label_fr: "Ubuntu 24.04, GitLab CE, son runner et son registre"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
