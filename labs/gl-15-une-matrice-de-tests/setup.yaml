@@ -1,0 +1,36 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline qui ne teste qu'une seule
+# combinaison.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien. Son réglage
+# `concurrent = 3` compte ici : une matrice qui ne pourrait pas tourner en
+# parallèle n'apporterait rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-15-une-matrice-de-tests
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-15"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-15` est le pipeline découpé du lab 14 : un orchestrateur et
+    # quatre fichiers d'étape. Son job de tests ne connaît qu'une version de
+    # Python et lance toute la suite d'un coup.
+    #
+    # Rien n'est cassé. Ce que ce pipeline ne dit pas, c'est si le code tourne
+    # encore sur la version de Python que la moitié de la production utilise.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-15"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: true
+        adapter_registre_local: true

@@ -1,0 +1,3 @@
+id: gl-15-une-matrice-de-tests
+title: "Tester plus d'une combinaison à la fois"
+description: "Les tests tournent sur une seule version de Python : rien ne dit si le code marche encore sur celle que la moitié de la production utilise. Construire une matrice, lui faire varier quelque chose de réel, et lier la construction à toutes ses combinaisons. La note porte sur les jobs que GitLab a instanciés."

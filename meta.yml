@@ -70,6 +70,7 @@ sections:
       - gl-12-accelerer-le-pipeline
       - gl-13-factoriser-le-yaml
       - gl-14-externaliser-les-jobs
+      - gl-15-une-matrice-de-tests
 
   - id: livrer
     title: "Deliver"

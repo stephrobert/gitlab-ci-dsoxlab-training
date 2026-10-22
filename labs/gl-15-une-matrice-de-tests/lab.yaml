@@ -1,0 +1,30 @@
+# Lab gl-15-une-matrice-de-tests. Les champs marqués REQUIS sont exigés par le validator :
+# sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-15-une-matrice-de-tests               # REQUIS
+title: "Test more than one combination at a time"   # REQUIS
+level: c3                     # REQUIS
+description: "The tests run on one Python version, so nothing says whether the code still works on the one half of production uses. Build a matrix, make it vary something real, and tie the build to all of its combinations. Graded on the jobs GitLab instantiated."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - matrix
+  - parallel
+  - needs
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-15-matrices/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 35m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
