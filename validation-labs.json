@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 19:20:26",
+  "genere_le": "2026-10-22 19:40:28",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -295,6 +295,19 @@
       "pourquoi": "",
       "date": "2026-10-22",
       "empreinte": "9f4b6c1878c8fa7569149a89781bfb8472c8b731d48d6da61f66b5946b23ac52"
+    },
+    "gl-25-durcir-le-pipeline": {
+      "id": "gl-25-durcir-le-pipeline",
+      "chemin": "gl-25-durcir-le-pipeline",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "6/6",
+      "duree_s": 119.7,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22",
+      "empreinte": "d6c841467ac3ed7d9be7b0fe288cf56811e303e4e9496b47375710e63a822c1a"
     },
     "gl-ep1-un-pipeline-qui-dit-vrai": {
       "id": "gl-ep1-un-pipeline-qui-dit-vrai",

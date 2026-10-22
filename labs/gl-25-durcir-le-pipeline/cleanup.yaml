@@ -1,0 +1,57 @@
+---
+# Joue par `dsoxlab clean` et `dsoxlab reset` : il remet la situation du
+# scenario ET LE RUNNER. Ce lab modifie /etc/gitlab-runner/config.toml, qui est
+# partage par tous les labs : le laisser durci casserait les labs qui ont
+# besoin de docker:dind, et un lab qui ne restaure pas ce qu il modifie fait
+# tomber le suivant pour une raison etrangere a son sujet.
+#
+# Le runner est restaure EN PREMIER, avant le projet : si la suppression du
+# projet echoue, le runner a deja retrouve son etat. Le diagnostic du setup
+# (/var/tmp/gl-25-diagnostic-depart.txt) n est PAS supprime ici : un nettoyage
+# qui efface le diagnostic prive le rejeu suivant de sa propre explication.
+- name: Nettoyer le lab gl-25-durcir-le-pipeline
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-25"
+    etat: "/var/lib/dsoxlab/gl-25"
+    copie_runner: "/var/lib/dsoxlab/gl-25-runner.toml"
+    config_runner: "/etc/gitlab-runner/config.toml"
+
+  tasks:
+    - name: Le runner a-t-il une copie de son etat de depart ?
+      ansible.builtin.stat:
+        path: "{{ copie_runner }}"
+      register: copie_runner_stat
+
+    - name: Remettre le runner dans son etat de depart
+      ansible.builtin.copy:
+        src: "{{ copie_runner }}"
+        dest: "{{ config_runner }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+      when: copie_runner_stat.stat.exists
+
+    - name: Le runner reprend la configuration restauree
+      ansible.builtin.systemd_service:
+        name: gitlab-runner
+        state: restarted
+      when: copie_runner_stat.stat.exists
+
+    - name: La copie du runner part, une fois restauree
+      ansible.builtin.file:
+        path: "{{ copie_runner }}"
+        state: absent
+
+    - name: Le projet et la copie de travail partent
+      ansible.builtin.include_tasks: ../_commun/nettoyer.yaml
+
+    - name: Les faits du lab partent
+      ansible.builtin.file:
+        path: "{{ etat }}"
+        state: absent
