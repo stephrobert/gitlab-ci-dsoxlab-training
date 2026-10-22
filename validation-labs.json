@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 10:28:04",
+  "genere_le": "2026-10-22 11:07:09",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -238,7 +238,7 @@
       "score_avant": 0,
       "score_apres": 100,
       "tests": "4/4",
-      "duree_s": 220.0,
+      "duree_s": 243.4,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"
