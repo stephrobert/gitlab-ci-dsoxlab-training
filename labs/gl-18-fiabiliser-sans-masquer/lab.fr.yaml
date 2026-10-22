@@ -1,0 +1,3 @@
+id: gl-18-fiabiliser-sans-masquer
+title: "Fiabiliser sans masquer les échecs"
+description: "Le pipeline est cassé avant même de démarrer : un job est rangé dans une étape que `stages:` ne déclare pas, et plus aucun job ne tourne. Le réparer, puis le fiabiliser : une relance limitée aux pannes d'infrastructure, des délais explicites, et un verrou pour que deux déploiements ne partent jamais ensemble. La note se prend sur les verrous que la forge a réellement créés et sur la forme de la configuration compilée."

@@ -63,32 +63,37 @@ sections:
       - gl-05-sortir-les-secrets
       - gl-06-controler-execution
       - gl-07-valider-avant-de-pousser
+
+  - id: livrer
+    title: "Deliver"
+    description: >-
+      Trigger a pipeline by schedule, by API and from another project, publish
+      an image to the registry, read quality reports where the reviewer looks,
+      and diagnose a job stuck in pending or silently skipped.
+    labs:
       - gl-08-declencher-autrement
       - gl-09-publier-au-registre
       - gl-10-rapports-de-qualite
       - gl-11-diagnostiquer-un-job-bloque
+
+  - id: industrialiser
+    title: "Industrialise"
+    description: >-
+      Speed the pipeline up with a DAG and a cache that is really reused,
+      factor the YAML with extends and anchors, externalise templates into
+      included files, test on a matrix, orchestrate a generated child
+      pipeline, stop running everything twice for one change, make the whole
+      thing reliable without hiding failures, then rebuild all of it from a
+      specification alone.
+    labs:
       - gl-12-accelerer-le-pipeline
       - gl-13-factoriser-le-yaml
       - gl-14-externaliser-les-jobs
       - gl-15-une-matrice-de-tests
       - gl-16-un-pipeline-enfant
       - gl-17-un-seul-pipeline-par-changement
-
-  - id: livrer
-    title: "Deliver"
-    description: >-
-      Deploy per environment, read quality reports in the merge request,
-      diagnose a job stuck in pending or silently skipped, and publish an image
-      to the registry.
-    labs: []
-
-  - id: industrialiser
-    title: "Industrialise"
-    description: >-
-      Factor the YAML with extends and anchors, externalise templates, speed
-      the pipeline up with a DAG and matrices, orchestrate parent and child
-      pipelines, and make the whole thing reliable.
-    labs: []
+      - gl-18-fiabiliser-sans-masquer
+      - gl-19-reconstruire-tout-le-pipeline
 
   - id: securiser
     title: "Secure and tool"

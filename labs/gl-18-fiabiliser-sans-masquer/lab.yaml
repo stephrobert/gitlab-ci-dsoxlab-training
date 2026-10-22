@@ -1,0 +1,31 @@
+# Lab gl-18-fiabiliser-sans-masquer. Les champs marqués REQUIS sont exigés par le
+# validator : sans eux, le lab est refusé, ou pire, disparaît du catalogue sans un mot.
+id: gl-18-fiabiliser-sans-masquer            # REQUIS
+title: "Reliable without hiding failures"    # REQUIS
+level: c3                     # REQUIS
+description: "The pipeline is broken before it even starts: a job sits in a stage that `stages:` does not declare, so no job runs at all. Repair it, then make it reliable: a retry that only covers infrastructure failures, explicit timeouts, and a lock so two deployments never run at once. Graded on the locks the forge really created and on the shape of the merged configuration."
+skills:                       # REQUIS, non vide
+  - gitlab-ci
+  - retry
+  - timeout
+  - resource-group
+  - reliability
+distros:                      # REQUIS, non vide
+  - ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-18-fiabilite/   # REQUIS, http(s)
+lab_type: lab
+estimated_time: 40m
+runtime:
+  type: vm
+  # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa
+  # propre machine, pas depuis un shell injecté.
+  session: local
+  targets:                    # REQUIS pour vm, non vide
+    - name: gitlab
+      host: gitlab-1.lab      # doit exister dans meta.yml: infra.hosts[]
+      label_en: "Ubuntu 24.04, GitLab CE and its runner"
+      label_fr: "Ubuntu 24.04, GitLab CE et son runner"
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

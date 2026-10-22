@@ -1,0 +1,110 @@
+---
+# Joué par `dsoxlab run` : il pose un dépôt applicatif complet et SANS AUCUN
+# fichier de CI.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-19-reconstruire-tout-le-pipeline
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-19"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+
+  tasks:
+    # `starter/lab-19` porte l'application, ses tests, son Dockerfile et son
+    # script de deploiement, mais AUCUN fichier de pipeline : ni
+    # `.gitlab-ci.yml`, ni repertoire `ci/`, ni script de generation du
+    # pipeline enfant. Le cahier des charges est dans `CAPSTONE-LAB-19.md`, a
+    # la racine du depot.
+    #
+    # `attendre_pipeline_depart` est a FAUX, et ce n'est pas un oubli : sans
+    # fichier de CI, aucun pipeline ne nait, et attendre un etat terminal
+    # tournerait dix minutes pour rien.
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "starter/lab-19"
+        exiger_absence_pipeline: false
+        effacer_pipelines: false
+        attendre_pipeline_depart: false
+        adapter_registre_local: true
+
+    # L'ETAT DE DEPART SE MESURE. Si le depot amont ajoutait un jour un fichier
+    # de CI a cette branche, l'epreuve perdrait son sujet sans que rien ne le
+    # dise : elle demanderait d'ecrire ce qui est deja ecrit.
+    - name: Le depot ne doit porter aucun fichier de pipeline
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        TROUVES=$(git ls-files | grep -E '^(\.gitlab-ci\.yml|ci/)' || true)
+        if [ -n "$TROUVES" ]; then
+          echo "le depart porte deja des fichiers de pipeline :"
+          echo "$TROUVES" | sed 's/^/  /'
+          exit 1
+        fi
+        test -f CAPSTONE-LAB-19.md
+        echo "aucun fichier de pipeline, et le cahier des charges est la"
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      changed_when: false
+
+    # Les restes d'un passage precedent feraient demarrer l'epreuve a moitie
+    # faite : les verrous de deploiement et les etiquettes du registre sont
+    # exactement ce que les tests comptent.
+    - name: Ni verrou de deploiement ni image publiee ne doivent preexister
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        VERROUS=$(curl -sS --header "$H" "$API/projects/$ID/resource_groups" | jq '[.[]?] | length')
+        DEPOTS=$(curl -sS --header "$H" "$API/projects/$ID/registry/repositories" | jq '[.[]?] | length')
+        echo "$VERROUS verrou(s), $DEPOTS depot(s) d image"
+        test "$VERROUS" -eq 0
+        test "$DEPOTS" -eq 0
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: false
+
+    # LE REGISTRE DU LAB PARLE EN CLAIR, et l'apprenant doit le savoir : il
+    # ecrit ses fichiers a partir de rien, donc personne ne peut patcher son
+    # service Docker a sa place. Ce memo est pose a cote de sa copie de
+    # travail, avec le cahier des charges.
+    - name: Rappeler la contrainte du registre du lab
+      ansible.builtin.copy:
+        dest: "{{ travail }}/REGISTRE-DU-LAB.txt"
+        mode: "0644"
+        content: |
+          Le registre de cette forge repond en HTTP, pas en HTTPS.
+
+          Un client Docker refuse par defaut de parler a un registre en clair :
+          le job de construction echouerait sur
+
+            http: server gave HTTP response to HTTPS client
+
+          Le service Docker du job doit donc etre lance avec l'adresse du
+          registre declaree comme non securisee, par exemple :
+
+            services:
+              - name: docker:27-dind
+                alias: docker
+                command: ["--insecure-registry=gitlab-1.lab:5050"]
+
+          Ce n'est pas une particularite du lab : un registre interne en HTTP
+          impose la meme chose en entreprise. En production, on sert le
+          registre en HTTPS et cette option disparait.

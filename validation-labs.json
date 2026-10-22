@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-10-22 07:40:33",
+  "genere_le": "2026-10-22 08:12:28",
   "act": "act version 0.2.84",
   "dsoxlab": "dsoxlab 0.5.5",
   "labs": {
@@ -191,6 +191,42 @@
       "score_apres": 100,
       "tests": "2/2",
       "duree_s": 213.1,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-17-un-seul-pipeline-par-changement": {
+      "id": "gl-17-un-seul-pipeline-par-changement",
+      "chemin": "gl-17-un-seul-pipeline-par-changement",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "2/2",
+      "duree_s": 237.0,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-18-fiabiliser-sans-masquer": {
+      "id": "gl-18-fiabiliser-sans-masquer",
+      "chemin": "gl-18-fiabiliser-sans-masquer",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "3/3",
+      "duree_s": 159.2,
+      "traces": [],
+      "pourquoi": "",
+      "date": "2026-10-22"
+    },
+    "gl-19-reconstruire-tout-le-pipeline": {
+      "id": "gl-19-reconstruire-tout-le-pipeline",
+      "chemin": "gl-19-reconstruire-tout-le-pipeline",
+      "verdict": "VALIDE",
+      "score_avant": 0,
+      "score_apres": 100,
+      "tests": "6/6",
+      "duree_s": 173.2,
       "traces": [],
       "pourquoi": "",
       "date": "2026-10-22"

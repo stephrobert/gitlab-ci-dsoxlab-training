@@ -1,0 +1,3 @@
+id: gl-19-reconstruire-tout-le-pipeline
+title: "Reconstruire tout le pipeline"
+description: "Le dépôt n'a plus aucun pipeline : pas un seul fichier de CI. En reconstruire un qui analyse le code, le teste sur une matrice avec remontée des résultats, déclenche un pipeline enfant généré, publie l'image au registre et déploie sans risque, en cinq étapes et plusieurs fichiers inclus. Aucun pas à pas : un cahier des charges, et l'état que la forge doit montrer à la fin."
