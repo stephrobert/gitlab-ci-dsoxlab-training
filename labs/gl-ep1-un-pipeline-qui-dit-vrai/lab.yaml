@@ -18,6 +18,15 @@ distros:                      # REQUIS, non vide
   - ubuntu24
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/validation/   # REQUIS, http(s)
 estimated_time: 60m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 1 : « Create and configure .gitlab-ci.yml files with proper YAML
+#   syntax, variables, artifacts, and caching strategies »
+# Epreuve C1 : rapport de test rendu lisible par artifacts:reports et secret
+# sorti de la configuration vers une variable.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

@@ -14,6 +14,19 @@ distros:                      # REQUIS, non vide
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-12-accelerer-pipeline/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 35m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 1 : « Create and configure .gitlab-ci.yml files with proper YAML
+#   syntax, variables, artifacts, and caching strategies »
+# - objectif 5 : « Diagnose pipeline failures and optimize performance using
+#   best practices and troubleshooting techniques »
+# - objectif 6 : « pipeline development with stages, jobs, and DAG
+#   architectures »
+# Cle de cache instable, donc cache jamais relu, et jobs qui attendent une
+# etape qui ne les concerne pas : needs, donc DAG.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

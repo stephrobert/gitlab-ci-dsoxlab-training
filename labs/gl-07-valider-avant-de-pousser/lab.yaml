@@ -14,6 +14,17 @@ distros:                      # REQUIS, non vide
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-07-valider-pipeline/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 30m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 1 : « Create and configure .gitlab-ci.yml files with proper YAML
+#   syntax, variables, artifacts, and caching strategies »
+# - objectif 5 : « Diagnose pipeline failures and optimize performance using
+#   best practices and troubleshooting techniques »
+# Note sur le rapport de lint de GitLab, donc sur la syntaxe que la forge
+# accepte, et sur les jobs qui ont vraiment tourne.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

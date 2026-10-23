@@ -14,6 +14,15 @@ distros:                      # REQUIS, non vide
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-02-lire-un-echec/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 30m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 5 : « Diagnose pipeline failures and optimize performance using
+#   best practices and troubleshooting techniques »
+# Une erreur de configuration qui empeche tout job de naitre, puis deux erreurs
+# que seul le journal d'un job revele.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

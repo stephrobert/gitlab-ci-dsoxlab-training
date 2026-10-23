@@ -17,6 +17,15 @@ distros:
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/securite-scanners/
 lab_type: lab
 estimated_time: 40m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 4 : « Implement security scanning tools within CI/CD workflows and
+#   interpret vulnerability reports »
+# SAST et Secret Detection actives, rapports JSON lus, jeton retire et absence
+# confirmee par un nouveau scan.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   session: local
