@@ -9,6 +9,54 @@ labs, a PATCH fixes a statement or a test without changing what a lab proves,
 and a MAJOR renames or removes labs, which breaks the progress already recorded
 by learners.
 
+## [0.2.0] - 2026-10-23
+
+### Added
+
+- **Level C4 goes from zero to seven labs**, and the catalog from 21 to **29**,
+  from 13 h 55 to **20 h 40**. This level was declared EMPTY when the catalog
+  was published yesterday, and the README said so rather than hide it: it is
+  the gap the audit of 2026-10-21 had found. It is now closed.
+
+  `gl-20-secrets-avances` renews secrets without breaking the pipeline,
+  `gl-21-activer-les-scanners` turns the scanners on and reads what they say,
+  `gl-22-scanner-les-images` stops a critical flaw from shipping,
+  `gl-23-supply-chain-tracable` signs the image and refuses unsigned ones,
+  `gl-24-proteger-les-merges` protects what merges and what deploys, and
+  `gl-25-durcir-le-pipeline` hardens the runner.
+
+- **Two more graded labs**: `gl-ep3-un-pipeline-qu-on-peut-auditer` closes
+  level C4, and `gl-ep4-un-pipeline-a-industrialiser` closes C3 with a pipeline
+  left half-industrialised, to diagnose. The catalog now carries four graded
+  labs and one capstone.
+
+- The twenty-nine verdicts are **VALIDE 0 -> 100**, and the twenty-nine
+  reference solutions are encrypted.
+
+### Fixed
+
+- `gl-ep4-un-pipeline-a-industrialiser` declares `level: c3` but `meta.yml`
+  listed it under the C1 section. A learner finishing level 1 was handed the
+  level 3 exam, and `dsoxlab next` followed that order. Moved to the end of
+  `industrialiser`, where the three other exams already match their level.
+
+- `gl-19-reconstruire-tout-le-pipeline` declares `lab_type: capstone` rather
+  than `lab`. It starts from a repository with no CI at all and a specification
+  for its only statement, and it closes level C3. The site's `check:niveaux`
+  refuses a level validated by a `lab`, and it is right to.
+
+- The two level exams point at the validation page rather than at the index of
+  labs. The change waited for the page to be **served**: it answered 404 in
+  production while it already existed on disk, and `validate-structure
+  --check-urls` said so. A `doc_url` is a promise made to the reader from
+  `dsoxlab guide`.
+
+- Five dead variable names in two tests (`RUF059`, `B007`), and a false
+  positive of `detect-private-key` on the lab whose subject IS secrets: it
+  writes a key header as a MARKER, in a `grep -q` and in the assertion that
+  checks it. That lab, and only that one, is excluded from that hook; a real
+  key dropped in another lab is still refused, which was measured.
+
 ## [0.1.1] - 2026-10-22
 
 ### Added
@@ -30,7 +78,7 @@ by learners.
 
 - `scripts/empreinte_lab.py` and `scripts/verifier-attestations.py`, a local
   corroboration: a sha256 of what the cycle plays, recorded beside each verdict
-  by future campaigns. It is **not required** — a verdict without one is not a
+  by future campaigns. It is **not required**: a verdict without one is not a
   defect, and the check says so and exits 0. `--strict` restores exit code 10
   for an automated caller.
 

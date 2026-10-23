@@ -64,7 +64,6 @@ sections:
       - gl-06-controler-execution
       - gl-07-valider-avant-de-pousser
       - gl-ep1-un-pipeline-qui-dit-vrai
-      - gl-ep4-un-pipeline-a-industrialiser
 
   - id: livrer
     title: "Deliver"
@@ -97,6 +96,7 @@ sections:
       - gl-17-un-seul-pipeline-par-changement
       - gl-18-fiabiliser-sans-masquer
       - gl-19-reconstruire-tout-le-pipeline
+      - gl-ep4-un-pipeline-a-industrialiser
 
   - id: securiser
     title: "Secure and tool"
