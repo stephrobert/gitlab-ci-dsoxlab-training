@@ -1,12 +1,15 @@
 id: gl-22-scanner-les-images
 title: Scan the image, and stop shipping a critical flaw
 level: l1
-description: 'À remplir : ce que l''apprenant saura faire à la fin.'
+description: "A pipeline builds and publishes its image without anyone looking at it, and a critical vulnerability has reached production. Add a job that scans the published image with Trivy, keep its JSON report as an artifact even when the job fails, make the pipeline fail on a critical vulnerability before any deployment, then rule out in `.trivyignore` the single finding the security team triaged, with its reason written next to it. Graded on what the forge saw: the report kept, the registry image at the commit tag, a pipeline that really failed with no deployment at all, and a single justified exception, absent from the latest report."
 skills:
-- a-remplir
+- gitlab-ci
+- sec.vuln.manage
+- trivy
+- container-scanning
 distros:
 - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/supply-chain/
 lab_type: lab
 estimated_time: 40m
 runtime:
