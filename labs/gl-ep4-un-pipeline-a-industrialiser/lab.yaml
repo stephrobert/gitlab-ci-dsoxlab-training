@@ -18,7 +18,7 @@ skills:                       # REQUIS, non vide
   - reliability
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/validation/   # REQUIS, http(s)
 estimated_time: 70m
 runtime:
   type: vm

@@ -9,6 +9,27 @@ un incrément MINEUR ajoute des labs, un CORRECTIF corrige un énoncé ou un tes
 sans changer ce qu'un lab prouve, et un incrément MAJEUR renomme ou retire des
 labs, ce qui casse la progression déjà enregistrée des apprenants.
 
+## [0.2.1] - 2026-10-23
+
+### Corrigé
+
+- **Cinq `doc_url` désignaient une page pivot au lieu de la leçon qui porte le
+  lab.** Un apprenant lançant `dsoxlab guide` depuis `gl-20`, `gl-22`, `gl-23`,
+  `gl-ep3` ou `gl-ep4` atterrissait sur une page d'orientation qui ne parlait
+  pas de son lab. Les trois labs de sécurité désignent désormais
+  `/securite/secrets/` et `/securite/supply-chain/`, et les deux épreuves
+  `/validation/`, qui est la page hébergeant réellement leur bloc `<Lab>`.
+
+  Ce qui retenait ce repointage était d'attendre la publication de la page de
+  validation. Elle répond 200 en production, et la moitié des épreuves l'avait
+  déjà adoptée. Mesure faite dans les deux sens après correction : les 29
+  `doc_url` du catalogue égalent la page qui porte leur bloc, aucun lab
+  orphelin, aucun bloc désignant un lab absent.
+
+- **`gl-22-scanner-les-images` était publié avec sa description de gabarit**,
+  dans les deux langues : « À remplir : ce que l'apprenant saura faire à la
+  fin. » Elle dit maintenant ce que le lab fait pratiquer, et ce qu'il note.
+
 ## [0.2.0] - 2026-10-23
 
 ### Ajouté

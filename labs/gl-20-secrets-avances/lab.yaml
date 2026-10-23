@@ -9,7 +9,7 @@ skills:
 - renouvellement
 distros:
 - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/secrets/
 lab_type: lab
 estimated_time: 40m
 runtime:

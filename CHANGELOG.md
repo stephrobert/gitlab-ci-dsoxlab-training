@@ -9,6 +9,27 @@ labs, a PATCH fixes a statement or a test without changing what a lab proves,
 and a MAJOR renames or removes labs, which breaks the progress already recorded
 by learners.
 
+## [0.2.1] - 2026-10-23
+
+### Fixed
+
+- **Five `doc_url` pointed at a pivot page instead of the lesson that carries
+  the lab.** A learner running `dsoxlab guide` from `gl-20`, `gl-22`, `gl-23`,
+  `gl-ep3` or `gl-ep4` landed on an orientation page that did not mention their
+  lab. The three security labs now point at `/securite/secrets/` and
+  `/securite/supply-chain/`, and the two graded labs at `/validation/`, which is
+  the page that actually hosts their `<Lab>` block.
+
+  What had held this back was waiting for the validation page to be published.
+  It answers 200 in production, and half the graded labs had already adopted it.
+  Measured both ways after the fix: the catalog's 29 `doc_url` equal the page
+  carrying their block, no orphan lab, no block naming a lab that does not
+  exist.
+
+- **`gl-22-scanner-les-images` shipped with its placeholder description**, in
+  both languages: "À remplir : ce que l'apprenant saura faire à la fin." It now
+  says what the lab makes you practise, and what it grades.
+
 ## [0.2.0] - 2026-10-23
 
 ### Added
