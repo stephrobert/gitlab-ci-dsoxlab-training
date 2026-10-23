@@ -8,10 +8,10 @@
 [![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](./LICENSE)
 
-Twenty-one hands-on labs to write a GitLab CI/CD pipeline and keep it
+Twenty-nine hands-on labs to write a GitLab CI/CD pipeline and keep it
 trustworthy: make it green, read its failures, move data between jobs, take the
 secrets out of the code, control when it runs, publish to the registry, then
-industrialise it. Every lab runs against a **real GitLab CE instance and its
+industrialise it, then secure it. Every lab runs against a **real GitLab CE instance and its
 runner**, and is graded on the state of the pipeline it leaves behind, never on
 the commands typed.
 
@@ -73,7 +73,7 @@ Nothing GitLab-related is needed on your own machine: the lab installs GitLab
 CE and its runner inside the virtual machine, which is the subject of the
 common base played before the first lab.
 
-**All twenty-one labs are `vm` labs**, so `dsoxlab provision` is always needed.
+**All twenty-nine labs are `vm` labs**, so `dsoxlab provision` is always needed.
 
 ### The machine, and why it is a large one
 
@@ -122,7 +122,7 @@ The machine has to exist first: nothing here runs on your own host.
 export LAB_HOME=$PWD
 dsoxlab provision                        # creates gitlab-1.lab, once
 
-dsoxlab list-labs                        # the twenty-one labs, in teaching order
+dsoxlab list-labs                        # the twenty-nine labs, in teaching order
 dsoxlab run       gl-01-premier-pipeline # sets the starting state and opens the session
 dsoxlab challenge gl-01-premier-pipeline # read the mission, no step-by-step
 dsoxlab check     gl-01-premier-pipeline # run the tests, record the score
@@ -192,7 +192,7 @@ first day, which is why `scripts/valider-labs.py` requires **0 before and 100
 after** and records the verdict in [`validation-labs.json`](./validation-labs.json).
 
 The reference solutions live in `solution/<lab>/solution.yaml`, and **all
-twenty-one are encrypted** with `ansible-vault`. A solution shipped in clear
+twenty-nine are encrypted** with `ansible-vault`. A solution shipped in clear
 text spoils the lab, and git keeps it forever.
 
 Three checks of this repository's own, each born of a real defect:
@@ -205,7 +205,7 @@ Three checks of this repository's own, each born of a real defect:
 
 ## Catalog
 
-Twenty-one labs, **13 h 55** in all, across four levels that follow the course
+Twenty-nine labs, **20 h 40** in all, across four levels that follow the course
 they validate.
 
 ### Level 1: write a pipeline and read its failures
@@ -237,7 +237,7 @@ Four labs and an exam, 3 h 10.
 
 ### Level 3: industrialise
 
-Eight labs, 5 h 40.
+Eight labs and an exam, 6 h 50.
 
 | Lab | What it proves |
 |---|---|
@@ -248,14 +248,24 @@ Eight labs, 5 h 40.
 | `gl-16-un-pipeline-enfant` | a pipeline that generates and runs its own jobs |
 | `gl-17-un-seul-pipeline-par-changement` | one change, one pipeline, not two |
 | `gl-18-fiabiliser-sans-masquer` | reliable without hiding failures behind a retry |
-| `gl-19-reconstruire-tout-le-pipeline` | the whole pipeline rebuilt from scratch |
+| `gl-19-reconstruire-tout-le-pipeline` | **capstone**: the whole pipeline rebuilt from a specification alone |
+| `gl-ep4-un-pipeline-a-industrialiser` | **graded**: a pipeline left half-industrialised, to diagnose |
 
 ### Level 4: secure and tool
 
-**Empty, and declared as such.** This is the gap the audit of 2026-10-21 found:
-the whole level, seven security lessons and three on tooling, has no hands-on
-practice yet. Saying so in the catalog is better than letting a learner
-discover it halfway through.
+Six labs and an exam, 5 h 35. **This level was empty when the catalog was
+published on 2026-10-22**, and the README said so rather than hide it. It is
+the gap the audit of 2026-10-21 had found, and it is now closed.
+
+| Lab | What it proves |
+|---|---|
+| `gl-21-activer-les-scanners` | the scanners run, and their reports are read |
+| `gl-22-scanner-les-images` | the image is scanned, and a critical flaw stops shipping |
+| `gl-23-supply-chain-tracable` | the image is signed, and unsigned ones are refused |
+| `gl-20-secrets-avances` | secrets are renewed without breaking the pipeline |
+| `gl-24-proteger-les-merges` | what merges and what deploys are both protected |
+| `gl-25-durcir-le-pipeline` | the runner is hardened, and what was wide open is closed |
+| `gl-ep3-un-pipeline-qu-on-peut-auditer` | **graded**: a pipeline you can audit |
 
 ## Contributing
 

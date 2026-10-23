@@ -8,10 +8,10 @@
 [![SLSA 3](https://slsa.dev/images/gh-badge-level3.svg)](https://slsa.dev)
 [![Licence : CC BY 4.0](https://img.shields.io/badge/License-CC%20BY%204.0-lightgrey.svg)](./LICENSE)
 
-Vingt et un labs pour écrire un pipeline GitLab CI/CD et le garder digne de
+Vingt-neuf labs pour écrire un pipeline GitLab CI/CD et le garder digne de
 confiance : le faire passer au vert, lire ses échecs, faire circuler les
 données entre les jobs, sortir les secrets du code, contrôler quand il part,
-publier au registre, puis l'industrialiser. Chaque lab se joue contre une
+publier au registre, l'industrialiser, puis le sécuriser. Chaque lab se joue contre une
 **vraie instance GitLab CE et son runner**, et il est noté sur l'état du
 pipeline qu'il laisse, jamais sur les commandes tapées.
 
@@ -76,7 +76,7 @@ Rien de GitLab n'est nécessaire sur ton poste : le lab installe GitLab CE et
 son runner dans la machine virtuelle, ce qui est justement l'objet du socle
 joué avant le premier lab.
 
-**Les vingt et un labs sont des labs `vm`**, donc `dsoxlab provision` est
+**Les vingt-neuf labs sont des labs `vm`**, donc `dsoxlab provision` est
 toujours nécessaire.
 
 ### La machine, et pourquoi elle est grosse
@@ -126,7 +126,7 @@ La machine doit exister d'abord : rien ici ne tourne sur ton poste.
 export LAB_HOME=$PWD
 dsoxlab provision                        # crée gitlab-1.lab, une fois
 
-dsoxlab list-labs                        # les vingt et un labs, dans l'ordre
+dsoxlab list-labs                        # les vingt-neuf labs, dans l'ordre
 dsoxlab run       gl-01-premier-pipeline # pose l'état de départ et ouvre la session
 dsoxlab challenge gl-01-premier-pipeline # lire la mission, sans pas-à-pas
 dsoxlab check     gl-01-premier-pipeline # joue les tests, enregistre le score
@@ -196,7 +196,7 @@ premier jour, et c'est pourquoi `scripts/valider-labs.py` exige **0 avant et
 [`validation-labs.json`](./validation-labs.json).
 
 Les solutions de référence vivent dans `solution/<lab>/solution.yaml`, et les
-**vingt et une sont chiffrées** par `ansible-vault`. Une solution livrée en
+**vingt-neuf sont chiffrées** par `ansible-vault`. Une solution livrée en
 clair gâche le lab, et git la garde pour toujours.
 
 Trois contrôles propres à ce dépôt, chacun né d'un défaut réel :
@@ -209,7 +209,7 @@ Trois contrôles propres à ce dépôt, chacun né d'un défaut réel :
 
 ## Catalogue
 
-Vingt et un labs, **13 h 55** en tout, répartis sur quatre niveaux qui suivent
+Vingt-neuf labs, **20 h 40** en tout, répartis sur quatre niveaux qui suivent
 la formation qu'ils valident.
 
 ### Niveau 1 : écrire un pipeline et lire ses échecs
@@ -241,7 +241,7 @@ Quatre labs et une épreuve, 3 h 10.
 
 ### Niveau 3 : industrialiser
 
-Huit labs, 5 h 40.
+Huit labs et une épreuve, 6 h 50.
 
 | Lab | Ce qu'il prouve |
 |---|---|
@@ -252,14 +252,24 @@ Huit labs, 5 h 40.
 | `gl-16-un-pipeline-enfant` | un pipeline qui génère et joue ses propres jobs |
 | `gl-17-un-seul-pipeline-par-changement` | un changement, un pipeline, pas deux |
 | `gl-18-fiabiliser-sans-masquer` | fiable sans masquer les échecs derrière une relance |
-| `gl-19-reconstruire-tout-le-pipeline` | tout le pipeline reconstruit depuis zéro |
+| `gl-19-reconstruire-tout-le-pipeline` | **capstone** : tout le pipeline reconstruit depuis un cahier des charges |
+| `gl-ep4-un-pipeline-a-industrialiser` | **évalué** : un pipeline laissé à moitié industrialisé, à diagnostiquer |
 
 ### Niveau 4 : sécuriser et outiller
 
-**Vide, et déclaré comme tel.** C'est le trou que l'audit du 2026-10-21 a
-trouvé : tout le niveau, sept leçons de sécurité et trois d'outillage, n'a
-aucune mise en pratique. Le dire dans le catalogue vaut mieux que de laisser un
-apprenant le découvrir à mi-parcours.
+Six labs et une épreuve, 5 h 35. **Ce niveau était vide à la publication du
+catalogue, le 2026-10-22**, et le README le disait plutôt que de le cacher.
+C'est le trou que l'audit du 2026-10-21 avait trouvé, et il est comblé.
+
+| Lab | Ce qu'il prouve |
+|---|---|
+| `gl-21-activer-les-scanners` | les scanners tournent, et leurs rapports sont lus |
+| `gl-22-scanner-les-images` | l'image est scannée, et une faille critique cesse de partir |
+| `gl-23-supply-chain-tracable` | l'image est signée, et celles qui ne le sont pas sont refusées |
+| `gl-20-secrets-avances` | les secrets se renouvellent sans casser le pipeline |
+| `gl-24-proteger-les-merges` | ce qui fusionne et ce qui déploie sont protégés |
+| `gl-25-durcir-le-pipeline` | le runner est durci, et ce qui était grand ouvert est fermé |
+| `gl-ep3-un-pipeline-qu-on-peut-auditer` | **évalué** : un pipeline qu'on peut auditer |
 
 ## Contribuer
 

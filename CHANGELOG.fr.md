@@ -9,6 +9,55 @@ un incrément MINEUR ajoute des labs, un CORRECTIF corrige un énoncé ou un tes
 sans changer ce qu'un lab prouve, et un incrément MAJEUR renomme ou retire des
 labs, ce qui casse la progression déjà enregistrée des apprenants.
 
+## [0.2.0] - 2026-10-23
+
+### Ajouté
+
+- **Le niveau C4 passe de zéro à sept labs**, et le catalogue de 21 à **29**,
+  de 13 h 55 à **20 h 40**. Ce niveau était déclaré VIDE à la publication du
+  catalogue hier, et le README le disait plutôt que de le cacher : c'est le
+  trou que l'audit du 2026-10-21 avait trouvé. Il est comblé.
+
+  `gl-20-secrets-avances` renouvelle les secrets sans casser le pipeline,
+  `gl-21-activer-les-scanners` active les scanners et lit ce qu'ils disent,
+  `gl-22-scanner-les-images` empêche une faille critique de partir,
+  `gl-23-supply-chain-tracable` signe l'image et refuse celles qui ne le sont
+  pas, `gl-24-proteger-les-merges` protège ce qui fusionne et ce qui déploie,
+  et `gl-25-durcir-le-pipeline` durcit le runner.
+
+- **Deux épreuves de plus** : `gl-ep3-un-pipeline-qu-on-peut-auditer` ferme le
+  niveau C4, et `gl-ep4-un-pipeline-a-industrialiser` ferme le C3 avec un
+  pipeline laissé à moitié industrialisé, à diagnostiquer. Le catalogue porte
+  désormais quatre labs évalués et un capstone.
+
+- Les vingt-neuf verdicts sont **VALIDE 0 -> 100**, et les vingt-neuf solutions
+  de référence sont chiffrées.
+
+### Corrigé
+
+- `gl-ep4-un-pipeline-a-industrialiser` déclare `level: c3` mais `meta.yml` la
+  rangeait dans la section C1. Un apprenant qui finissait le niveau 1 tombait
+  sur l'épreuve du niveau 3, et `dsoxlab next` suivait cet ordre. Déplacée à la
+  fin d'`industrialiser`, où les trois autres épreuves concordent déjà avec
+  leur niveau.
+
+- `gl-19-reconstruire-tout-le-pipeline` se déclare `lab_type: capstone` et non
+  `lab`. Il part d'un dépôt sans aucune CI, avec un cahier des charges pour
+  seul énoncé, et il ferme le niveau C3. Le contrôle `check:niveaux` du site
+  refuse qu'un niveau soit validé par un `lab`, et il a raison.
+
+- Les deux épreuves de niveau pointent la page de validation plutôt que
+  l'index des labs. Le changement a attendu que la page soit **servie** : elle
+  répondait 404 en production alors qu'elle existait déjà sur disque, et
+  `validate-structure --check-urls` l'a dit. Un `doc_url` est une promesse
+  faite au lecteur depuis `dsoxlab guide`.
+
+- Cinq noms de variables morts dans deux tests (`RUF059`, `B007`), et un faux
+  positif de `detect-private-key` sur le lab dont le sujet EST les secrets :
+  il écrit un en-tête de clé comme MARQUEUR, dans un `grep -q` et dans
+  l'assertion qui le contrôle. Ce lab, et lui seul, est exclu de ce hook ; une
+  vraie clé posée dans un autre lab reste refusée, ce qui a été mesuré.
+
 ## [0.1.1] - 2026-10-22
 
 ### Ajouté
