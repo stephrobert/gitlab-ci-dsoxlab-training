@@ -319,7 +319,7 @@ def test_secret_detection_a_tourne_et_depose_son_rapport(forge, projet_du_lab, p
             )
         )
 
-    pipeline, job, rapport = rapports[0]
+    _pipeline, _job, rapport = rapports[0]
     scan = rapport.get("scan") or {}
     assert scan.get("type") == TYPE_SECRETS and isinstance(rapport.get("vulnerabilities"), list), (
         message(
@@ -354,7 +354,7 @@ def test_un_scan_a_vu_le_jeton_ecrit_en_dur(forge, projet_du_lab, pipelines_main
     qu'en soit l'origine.
     """
     vus = []
-    for pipeline, job, rapport in _rapports_secrets(forge, projet_du_lab["id"], pipelines_main):
+    for _pipeline, _job, rapport in _rapports_secrets(forge, projet_du_lab["id"], pipelines_main):
         vus += [v for v in rapport.get("vulnerabilities") or [] if _est_le_jeton_plante(v)]
 
     assert vus, message(

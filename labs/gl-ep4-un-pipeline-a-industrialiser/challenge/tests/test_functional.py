@@ -292,7 +292,7 @@ def test_les_tests_tournent_en_matrice_avec_rapports(configuration, dernier):
         en="The instances do not come from a `parallel:matrix` declaration.",
         fr="Les instances ne viennent pas d'une déclaration `parallel:matrix`.",
     )
-    for nom, instances in matrices.items():
+    for _nom, instances in matrices.items():
         mauvais = {
             j["name"]: j["status"]
             for j in instances
