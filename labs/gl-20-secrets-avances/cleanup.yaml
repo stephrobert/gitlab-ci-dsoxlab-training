@@ -1,0 +1,24 @@
+---
+# Joue par `dsoxlab clean` et `dsoxlab reset` : il remet la situation du
+# scenario. L essentiel vit dans `_commun/nettoyer.yaml` : le projet part avec
+# ses variables et ses jetons d acces, puis la copie de travail et ses notes.
+# Les faits du lab (identifiant du jeton de depart, pipeline de depart) vivent
+# hors du depot et partent a part.
+- name: Nettoyer le lab gl-20-secrets-avances
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-20"
+    etat: "/var/lib/dsoxlab/gl-20"
+
+  tasks:
+    - name: Le projet et la copie de travail partent
+      ansible.builtin.include_tasks: ../_commun/nettoyer.yaml
+
+    - name: Les faits du lab partent
+      ansible.builtin.file:
+        path: "{{ etat }}"
+        state: absent

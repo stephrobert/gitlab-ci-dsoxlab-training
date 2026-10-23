@@ -45,6 +45,22 @@ repos:
       - id: check-yaml
       - id: check-merge-conflict
       - id: detect-private-key
+        # `gl-20-secrets-avances` est exclu, et uniquement lui. Le hook
+        # reconnaît une clé privée à son EN-TÊTE, et ce lab écrit cet en-tête
+        # comme MARQUEUR : un `grep -q` dans le pipeline généré, qui vérifie
+        # que la clé injectée par la variable protégée est bien arrivée, et
+        # l'assertion du test qui le contrôle. Il n'y a aucun matériel
+        # cryptographique dans ces fichiers, seulement la ligne de titre.
+        #
+        # Ce commentaire ne la cite pas non plus, et ce n'est pas de la
+        # coquetterie : la première rédaction l'écrivait en toutes lettres, et
+        # le hook a refusé ce fichier-ci. Un détecteur qui lit des chaînes ne
+        # distingue pas un exemple d'un vrai secret, et c'est bien ainsi.
+        #
+        # L'exclusion vise le lab, pas le contrôle : partout ailleurs, une
+        # vraie clé reste refusée. Et c'est le seul lab du catalogue dont le
+        # sujet soit les secrets, donc le seul à écrire cette chaîne.
+        exclude: '^labs/gl-20-secrets-avances/'
 
   - repo: local
     hooks:

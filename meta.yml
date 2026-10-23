@@ -64,6 +64,7 @@ sections:
       - gl-06-controler-execution
       - gl-07-valider-avant-de-pousser
       - gl-ep1-un-pipeline-qui-dit-vrai
+      - gl-ep4-un-pipeline-a-industrialiser
 
   - id: livrer
     title: "Deliver"
@@ -100,7 +101,15 @@ sections:
   - id: securiser
     title: "Secure and tool"
     description: >-
-      Not written yet. This is the gap the audit of 2026-10-21 found: the whole
-      C4 level of the course, seven security lessons and three on tooling, has
-      no hands-on practice at all. Labs 20 to 25 of the plan belong here.
-    labs: []
+      Replay an attack on a pipeline and block it, turn the scanners on and
+      read their reports, sign an image and refuse the ones that are not,
+      protect what merges and what deploys, harden the runner, and audit your
+      own chain without a paid licence.
+    labs:
+      - gl-21-activer-les-scanners
+      - gl-22-scanner-les-images
+      - gl-23-supply-chain-tracable
+      - gl-20-secrets-avances
+      - gl-24-proteger-les-merges
+      - gl-25-durcir-le-pipeline
+      - gl-ep3-un-pipeline-qu-on-peut-auditer

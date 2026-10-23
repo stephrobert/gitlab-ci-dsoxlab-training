@@ -1,0 +1,6 @@
+title: Activer les scanners, et lire ce qu'ils disent
+description: 'Le pipeline teste l''application et ne dit rien de sa sécurité : aucun
+  scanner ne tourne, et un jeton GitLab est écrit en dur dans `app/config.py`. Activer
+  SAST et Secret Detection, lire les rapports JSON qu''ils produisent, retirer le
+  jeton et prouver par un nouveau scan qu''il a disparu. La note porte sur les rapports
+  que la forge détient vraiment, pas sur le fichier écrit.'

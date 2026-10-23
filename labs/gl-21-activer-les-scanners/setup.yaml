@@ -1,0 +1,194 @@
+---
+# Joué par `dsoxlab run` : il pose un pipeline qui marche, SANS aucun scanner,
+# et un vrai défaut dans le code que seul un scanner révélera.
+#
+# Le socle installe GitLab CE, son runner et le registre, et il est
+# idempotent : après les labs précédents, il ne réinstalle rien.
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-21-activer-les-scanners
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-21"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+    # LE JETON PLANTE EST FABRIQUE, ET IL EST ECRIT EN DEUX MORCEAUX. Ce n est
+    # le jeton de personne : vingt caracteres tires au hasard derriere le
+    # prefixe des jetons personnels GitLab, ce qui suffit au detecteur. Le
+    # prefixe est separe pour qu aucune forme complete ne figure dans ce
+    # catalogue : un moteur de detection de secrets (celui de GitHub reconnait
+    # ce format) y verrait un vrai jeton et bloquerait la publication.
+    jeton_prefixe: "glpat"
+    jeton_suffixe: "7Kd2mQx9Lw4RvT8nZb3H"
+
+  tasks:
+    # `main` du depot fil rouge ne porte AUCUN fichier de pipeline, et c est
+    # voulu : ce lab ne part pas d une branche `starter/lab-NN` mais d un
+    # pipeline minimal pose ici, qui ne contient que le test. L apprenant n a
+    # donc rien a deviner de l orchestration des labs precedents.
+    #
+    # La copie de travail est testee AVANT le depot commun : c est elle qui dit
+    # si le lab est joue pour la premiere fois ou rejoue. Le defaut et le
+    # pipeline ne sont poses que sur une copie neuve, jamais par-dessus le
+    # travail de l apprenant.
+    - name: La copie de travail existe-t-elle deja ?
+      ansible.builtin.stat:
+        path: "{{ travail }}/{{ projet }}/.git"
+      register: copie_gl21
+
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "main"
+        exiger_absence_pipeline: "{{ not copie_gl21.stat.exists }}"
+        effacer_pipelines: "{{ not copie_gl21.stat.exists }}"
+        attendre_pipeline_depart: false
+        adapter_registre_local: false
+
+    # LE DEFAUT : un jeton d acces GitLab ecrit en dur dans la configuration de
+    # l application, comme valeur par defaut d une variable d environnement.
+    # C est le geste le plus courant, et le plus discret : l application marche
+    # avec ou sans la variable, donc personne ne le voit jamais.
+    #
+    # `insertbefore` plutot qu une insertion en fin de fichier : la ligne doit
+    # tomber DANS la classe `Settings`, avec son indentation, sinon le module
+    # ne s importe plus et le test du pipeline casse pour une autre raison.
+    - name: Un jeton ecrit en dur dans la configuration de l application
+      ansible.builtin.lineinfile:
+        path: "{{ travail }}/{{ projet }}/app/config.py"
+        insertbefore: '^\s+debug: bool'
+        regexp: '^\s+registry_token: str'
+        line: '    registry_token: str = os.getenv("REGISTRY_TOKEN", "{{ jeton_prefixe }}-{{ jeton_suffixe }}")'
+      when: not copie_gl21.stat.exists
+      no_log: true
+
+    # LE PIPELINE DE DEPART : un seul job, le test. Aucun `include`, aucun
+    # scanner. L etape `test` est declaree, et c est volontaire : les templates
+    # de securite rangent leurs jobs dans l etape `test`, et un job range dans
+    # une etape que `stages:` ne declare pas ferait refuser TOUTE la
+    # configuration (le pipeline naitrait en echec avec zero job).
+    - name: Un pipeline qui marche, sans aucun scanner
+      ansible.builtin.copy:
+        dest: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        mode: "0644"
+        content: |
+          stages:
+            - test
+
+          pytest:
+            stage: test
+            image: python:3.12-slim
+            script:
+              - pip install -r requirements-dev.txt
+              - pytest -v
+      when: not copie_gl21.stat.exists
+
+    # Un seul commit pour le defaut ET le pipeline, pousse sur `main`. Le
+    # pipeline qui en nait est donc le premier de la branche, et il est sain.
+    # Pas de push force : le depot commun vient de pousser `main`, ce commit
+    # s y ajoute, c est une simple avance. Aucune apostrophe dans le script :
+    # voir `_commun/depot.yaml`.
+    - name: Pousser le pipeline et le jeton dans la forge
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        AUTH="oauth2:$JETON"
+        git add -A
+        git diff --cached --quiet || git commit -q -m "feat: un pipeline de test"
+        git push -q "http://$AUTH@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      when: not copie_gl21.stat.exists
+      changed_when: true
+      no_log: true
+
+    # Le pipeline de depart doit etre TERMINE avant de rendre la main : sinon
+    # l apprenant ouvre un pipeline en cours, et la mesure qui suit lirait un
+    # etat transitoire. On attend le pipeline du DERNIER commit de `main`, pas
+    # le dernier pipeline venu, qui pourrait etre celui d un commit precedent.
+    - name: Attendre le pipeline du dernier commit de main
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+        test -n "$SHA"
+        ETAT=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1" | jq -r '.[0].status // "aucun"')
+        echo "$ETAT"
+        case "$ETAT" in
+          success|failed|canceled|skipped|manual) exit 0 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: pipeline_depart
+      until: pipeline_depart.rc == 0
+      retries: 40
+      delay: 15
+      changed_when: false
+
+    # L ETAT DE DEPART SE MESURE, IL NE SE SUPPOSE PAS. Quatre choses doivent
+    # etre vraies, sinon le lab n a plus d objet :
+    #
+    #   1. le defaut est LA, dans le fichier que la forge sert ;
+    #   2. le fichier de pipeline ne parle d aucun scanner ;
+    #   3. aucun job du dernier pipeline ne produit de rapport de securite ;
+    #   4. ce pipeline est SAIN : aucun job en echec ni annule, et au moins un
+    #      job reussi. Un lab qui part d un pipeline rouge ne mesurerait pas
+    #      ce qu il annonce.
+    - name: Le defaut est la, et aucun scanner n est actif
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+
+        CONF=$(curl -sS --header "$H" "$API/projects/$ID/repository/files/app%2Fconfig%2Epy/raw?ref=main")
+        if ! echo "$CONF" | grep -Eq "glpat-[0-9A-Za-z_-]{20}"; then
+          echo "le jeton plante n est plus dans app/config.py : le lab n a plus d objet"
+          exit 1
+        fi
+        echo "defaut present : un jeton GitLab ecrit en dur dans app/config.py"
+
+        CI=$(curl -sS --header "$H" "$API/projects/$ID/repository/files/%2Egitlab-ci%2Eyml/raw?ref=main")
+        if echo "$CI" | grep -Eiq "sast|secret-detection|dependency-scanning|container-scanning|dast"; then
+          echo "le fichier de pipeline de depart parle deja d un scanner"
+          exit 1
+        fi
+        echo "aucun scanner dans .gitlab-ci.yml"
+
+        PID=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&per_page=1" | jq -r '.[0].id // empty')
+        test -n "$PID"
+        JOBS=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PID/jobs?per_page=100")
+        RAPPORTS=$(echo "$JOBS" | jq '[.[] | .artifacts[]? | select(.file_type == "sast" or .file_type == "secret_detection")] | length')
+        if [ "$RAPPORTS" -ne 0 ]; then
+          echo "le pipeline de depart produit deja $RAPPORTS rapport(s) de securite"
+          exit 1
+        fi
+        MAUVAIS=$(echo "$JOBS" | jq '[.[] | select(.status == "failed" or .status == "canceled")] | length')
+        BONS=$(echo "$JOBS" | jq '[.[] | select(.status == "success")] | length')
+        echo "pipeline $PID : $BONS job(s) reussi(s), $MAUVAIS en echec ou annule(s)"
+        test "$MAUVAIS" -eq 0
+        test "$BONS" -ge 1
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      changed_when: false

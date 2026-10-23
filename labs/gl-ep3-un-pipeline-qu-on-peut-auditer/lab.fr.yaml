@@ -1,0 +1,2 @@
+title: "Épreuve de niveau : un pipeline qu'on peut auditer"
+description: "Le pipeline est vert et le déploiement en production fonctionne, mais personne ne pourrait se porter garant de la chaîne : un secret de déploiement circule vers toutes les branches, n'importe qui peut réécrire main, une fusion n'exige aucun pipeline vert, les images ne sont pas épinglées et aucun scanner n'a jamais tourné. Cinq défauts, aucun n'est nommé. Rendre le pipeline auditable, la note se prenant sur l'état que la forge rapporte par son API. Aucune fonctionnalité Premium n'est nécessaire."

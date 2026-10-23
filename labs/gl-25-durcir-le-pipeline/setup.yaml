@@ -1,0 +1,304 @@
+---
+# Joue par `dsoxlab run` : il pose un runner OUVERT et un pipeline qui le
+# prouve. Le runner du lab tourne en mode privilegie, sans liste d images
+# autorisees, sans aucune capacite retiree : un job y monte un systeme de
+# fichiers, et n importe quelle image y tourne. Le pipeline de depart rejoue
+# les deux attaques, et elles REUSSISSENT : c est l etat a corriger.
+#
+# CE LAB TOUCHE A LA CONFIGURATION DU RUNNER (/etc/gitlab-runner/config.toml),
+# qui est partagee par tous les labs du catalogue. Le setup en garde donc une
+# copie HORS de l etat du lab (/var/lib/dsoxlab/gl-25-runner.toml), et le
+# cleanup la remet en place : sans cela, les labs suivants herites d un runner
+# durci (plus de docker:dind) ou, pire, d un runner qui ne demarre plus.
+#
+# ECRITURE : ce fichier ne contient AUCUNE apostrophe isolee, et aucune
+# longueur de variable shell du genre dollar-accolade-diese. Les deux font
+# refuser le playbook au chargement (voir _commun/depot.yaml).
+- name: Socle commun du catalogue
+  ansible.builtin.import_playbook: ../_commun/socle.yaml
+
+- name: Preparer le lab gl-25-durcir-le-pipeline
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-25"
+    bundle_cible: "/opt/dsoxlab/pipeline-craft.bundle"
+    etat: "/var/lib/dsoxlab/gl-25"
+    # La copie du config.toml de depart, HORS de `etat` : le cleanup la
+    # restaure avant de supprimer `etat`.
+    copie_runner: "/var/lib/dsoxlab/gl-25-runner.toml"
+    config_runner: "/etc/gitlab-runner/config.toml"
+
+  tasks:
+    - name: La copie de travail existe-t-elle deja ?
+      ansible.builtin.stat:
+        path: "{{ travail }}/{{ projet }}/.git"
+      register: copie_gl25
+
+    - name: Le repertoire des faits du lab
+      ansible.builtin.file:
+        path: "{{ etat }}"
+        state: directory
+        mode: "0755"
+
+    - name: Le runner a-t-il deja une copie de son etat de depart ?
+      ansible.builtin.stat:
+        path: "{{ copie_runner }}"
+      register: copie_runner_stat
+
+    # Une copie existe : un lab precedent (ou un rejeu sans nettoyage) a laisse
+    # un runner peut-etre durci. On le remet dans l etat de la copie.
+    - name: Remettre le runner dans son etat de depart
+      ansible.builtin.copy:
+        src: "{{ copie_runner }}"
+        dest: "{{ config_runner }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+      when: copie_runner_stat.stat.exists
+
+    # Pas de copie : la configuration actuelle EST l etat de depart, a
+    # condition qu elle soit celle que le socle pose. Sinon on s arrete, au
+    # lieu de prendre un runner deja durci pour la reference. Le contenu du
+    # fichier (il porte le jeton du runner) n est jamais affiche.
+    - name: Le runner est-il bien dans l etat que le socle pose ?
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -q '^ *privileged = true' "$CONFIG" || { echo "privileged n est pas a true dans $CONFIG"; exit 1; }
+        if grep -qE '^ *(allowed_images|allowed_services|allowed_privileged_images|allowed_privileged_services|cap_drop|cap_add|security_opt) *=' "$CONFIG"; then
+          echo "$CONFIG porte deja des reglages de durcissement : le runner n est pas dans son etat de depart"
+          exit 1
+        fi
+      args:
+        executable: /bin/bash
+      environment:
+        CONFIG: "{{ config_runner }}"
+      changed_when: false
+      when: not copie_runner_stat.stat.exists
+
+    - name: Garder une copie du runner de depart
+      ansible.builtin.copy:
+        src: "{{ config_runner }}"
+        dest: "{{ copie_runner }}"
+        remote_src: true
+        owner: root
+        group: root
+        mode: "0600"
+      when: not copie_runner_stat.stat.exists
+
+    - name: Le runner reprend sa configuration de depart
+      ansible.builtin.systemd_service:
+        name: gitlab-runner
+        state: restarted
+
+    - name: Le projet du lab dans la forge
+      ansible.builtin.include_tasks: ../_commun/depot.yaml
+      vars:
+        branche_source: "main"
+        exiger_absence_pipeline: "{{ not copie_gl25.stat.exists }}"
+        effacer_pipelines: "{{ not copie_gl25.stat.exists }}"
+        attendre_pipeline_depart: false
+        adapter_registre_local: false
+
+    # LE PIPELINE DE DEPART : un test legitime, puis DEUX ATTAQUES. Chacune
+    # reussit tant que le runner est ouvert (le job est vert et le dit), et
+    # echoue des que le runner est durci (le job est rouge, ce qui est le
+    # resultat voulu). `allow_failure: true` evite que le pipeline entier
+    # passe en echec : un job d attaque bloque est un SUCCES du durcissement.
+    #
+    # L image de la seconde attaque est une version d alpine HORS de la liste
+    # que l apprenant autorisera. Son digest est celui de l image deja en cache
+    # sur la VM.
+    - name: Un pipeline qui teste, puis rejoue deux attaques
+      ansible.builtin.copy:
+        dest: "{{ travail }}/{{ projet }}/.gitlab-ci.yml"
+        mode: "0644"
+        content: |
+          stages:
+            - verifier
+            - attaquer
+
+          default:
+            image: alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+
+          tester:
+            stage: verifier
+            script:
+              - echo "TESTS-OK"
+
+          # Attaque 1 : sortir du confinement. Monter un systeme de fichiers
+          # exige la capacite SYS_ADMIN, que seul un conteneur privilegie
+          # possede.
+          attaque-privilege:
+            stage: attaquer
+            allow_failure: true
+            script:
+              - |
+                if mount -t tmpfs none /mnt; then
+                  echo "ATTAQUE-REUSSIE: le conteneur a pu monter un systeme de fichiers"
+                else
+                  echo "ATTAQUE-BLOQUEE: le conteneur ne peut pas monter de systeme de fichiers"
+                  exit 1
+                fi
+
+          # Attaque 2 : faire tourner une image que personne n a validee.
+          attaque-image:
+            stage: attaquer
+            allow_failure: true
+            image: alpine:3.20@sha256:d9e853e87e55526f6b2917df91a2115c36dd7c696a35be12163d44e6e2a4b6bc
+            script:
+              - |
+                echo "ATTAQUE-REUSSIE: une image hors liste a pu s executer"
+      when: not copie_gl25.stat.exists
+
+    - name: Pousser le pipeline dans la forge
+      ansible.builtin.shell: |
+        set -o pipefail
+        cd "$TRAVAIL/$PROJET"
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        AUTH="oauth2:$JETON"
+        git add -A
+        git diff --cached --quiet || git commit -q -m "feat: un pipeline qui teste puis rejoue deux attaques"
+        git push -q "http://$AUTH@gitlab-1.lab/root/$PROJET.git" main
+      args:
+        executable: /bin/bash
+      environment:
+        TRAVAIL: "{{ travail }}"
+        PROJET: "{{ projet }}"
+      when: not copie_gl25.stat.exists
+      changed_when: true
+      no_log: true
+
+    - name: Attendre le pipeline du dernier commit de main
+      ansible.builtin.shell: |
+        set -o pipefail
+        JETON=$(cat /etc/dsoxlab/jeton-api)
+        API="$URL/api/v4"
+        H="PRIVATE-TOKEN: $JETON"
+        ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+        test -n "$ID"
+        SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+        test -n "$SHA"
+        ETAT=$(curl -sS --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1" | jq -r '.[0].status // "aucun"')
+        echo "$ETAT"
+        case "$ETAT" in
+          success|failed|canceled|skipped|manual) exit 0 ;;
+          *) exit 1 ;;
+        esac
+      args:
+        executable: /bin/bash
+      environment:
+        PROJET: "{{ projet }}"
+        URL: "{{ gitlab_url }}"
+      register: pipeline_depart
+      until: pipeline_depart.rc == 0
+      retries: 40
+      delay: 10
+      changed_when: false
+      when: not copie_gl25.stat.exists
+
+    # LE SETUP MESURE SON PROPRE ETAT DE DEPART, et il l ecrit dans un fichier
+    # HORS de `etat` : le cleanup supprime `etat`, et un diagnostic efface par
+    # le nettoyage est un diagnostic perdu. Chaque appel d API releve son CODE
+    # HTTP AVANT qu on lise le corps : un comptage ou une lecture sur un corps
+    # d erreur mesure le message d erreur.
+    - block:
+        - name: Mesurer l etat de depart
+          ansible.builtin.shell: |
+            set -o pipefail
+            DIAG="/var/tmp/gl-25-diagnostic-depart.txt"
+            mkdir -p "$ETAT"
+            : > "$DIAG"
+            chmod 0644 "$DIAG"
+            echec() { echo "$*" >> "$DIAG"; exit 1; }
+            JETON=$(cat /etc/dsoxlab/jeton-api)
+            API="$URL/api/v4"
+            H="PRIVATE-TOKEN: $JETON"
+            ID=$(curl -sS --header "$H" "$API/projects/root%2F$PROJET" | jq -r '.id // empty')
+            test -n "$ID" || echec "projet introuvable"
+            SHA=$(curl -sS --header "$H" "$API/projects/$ID/repository/branches/main" | jq -r '.commit.id // empty')
+            CODE=$(curl -sS -o /tmp/gl25-pl.json -w "%{http_code}" --header "$H" "$API/projects/$ID/pipelines?ref=main&sha=$SHA&per_page=1")
+            echo "sonde GET pipelines : HTTP $CODE" >> "$DIAG"
+            test "$CODE" = "200" || echec "liste des pipelines : HTTP $CODE"
+            PL=$(jq -r '.[0].id // empty' /tmp/gl25-pl.json)
+            test -n "$PL" || echec "aucun pipeline sur le SHA de main ($SHA)"
+            CODE=$(curl -sS -o /tmp/gl25-jobs.json -w "%{http_code}" --header "$H" "$API/projects/$ID/pipelines/$PL/jobs?per_page=100")
+            echo "sonde GET pipelines/jobs : HTTP $CODE" >> "$DIAG"
+            test "$CODE" = "200" || echec "jobs du pipeline : HTTP $CODE"
+            jq -r '.[] | "  \(.name) \(.status)"' /tmp/gl25-jobs.json >> "$DIAG"
+            ETAT_PL=$(curl -sS --header "$H" "$API/projects/$ID/pipelines/$PL" | jq -r .status)
+            test "$ETAT_PL" = "success" || echec "le pipeline de depart est $ETAT_PL : il devrait etre success (attaques reussies, allow_failure)"
+            for NOM in tester attaque-privilege attaque-image; do
+              JOB=$(jq -r --arg n "$NOM" '.[] | select(.name == $n) | .id' /tmp/gl25-jobs.json)
+              test -n "$JOB" || echec "job $NOM absent du pipeline de depart"
+              ST=$(jq -r --arg n "$NOM" '.[] | select(.name == $n) | .status' /tmp/gl25-jobs.json)
+              test "$ST" = "success" || echec "job $NOM : $ST au lieu de success"
+              CODE=$(curl -sS -o /tmp/gl25-trace.txt -w "%{http_code}" --header "$H" "$API/projects/$ID/jobs/$JOB/trace")
+              echo "sonde GET jobs/$JOB/trace ($NOM) : HTTP $CODE" >> "$DIAG"
+              test "$CODE" = "200" || echec "journal de $NOM : HTTP $CODE"
+              case "$NOM" in
+                attaque-*) grep -q "ATTAQUE-REUSSIE" /tmp/gl25-trace.txt || echec "le journal de $NOM ne porte pas ATTAQUE-REUSSIE : le runner est deja durci" ;;
+                *) grep -q "TESTS-OK" /tmp/gl25-trace.txt || echec "le journal de $NOM ne porte pas TESTS-OK" ;;
+              esac
+            done
+            rm -f /tmp/gl25-pl.json /tmp/gl25-jobs.json /tmp/gl25-trace.txt
+            echo "$PL" > "$ETAT/depart-pipeline"
+            chmod 0644 "$ETAT/depart-pipeline"
+            echo "etat de depart : pipeline $PL, deux attaques reussies" >> "$DIAG"
+          args:
+            executable: /bin/bash
+          environment:
+            PROJET: "{{ projet }}"
+            URL: "{{ gitlab_url }}"
+            ETAT: "{{ etat }}"
+          changed_when: false
+          no_log: true
+      rescue:
+        - name: Lire le diagnostic de l etat de depart
+          ansible.builtin.command: cat /var/tmp/gl-25-diagnostic-depart.txt
+          register: diagnostic
+          changed_when: false
+          failed_when: false
+        - name: La cause de l echec de la mesure
+          ansible.builtin.fail:
+            msg: "{{ diagnostic.stdout_lines | default(['fichier de diagnostic absent']) }}"
+      when: not copie_gl25.stat.exists
+
+    - name: Les faits de la situation
+      ansible.builtin.copy:
+        dest: "{{ travail }}/NOTE-RUNNER.txt"
+        mode: "0644"
+        content: |
+          Ce que la situation vous donne deja.
+
+          Le projet pipeline-craft porte un pipeline qui rejoue deux attaques
+          contre le runner. Les deux REUSSISSENT :
+
+            - attaque-privilege monte un systeme de fichiers depuis le job :
+              le conteneur est privilegie ;
+            - attaque-image fait tourner une image que personne n a validee.
+
+          Le runner se regle dans /etc/gitlab-runner/config.toml, section
+          [runners.docker] du runner runner-du-lab. Le fichier appartient a
+          root : il se modifie avec sudo. Le runner relit ce fichier tout seul ;
+          s il tarde, sudo systemctl restart gitlab-runner le force.
+
+          Trois reglages font l objet du lab :
+
+            - privileged : donne au job un acces root complet a l hote ;
+            - allowed_images : la liste des images qu un job peut demander
+              (une cle absente autorise TOUT) ;
+            - cap_drop et security_opt : retirent les capacites Linux du
+              conteneur et lui interdisent d en regagner.
+
+          Image du pipeline legitime :
+          alpine:3.24.2@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+          Image de l attaque, a refuser : alpine:3.20
+
+          Un jeton personnel de la VM, root, est lisible dans
+          /etc/dsoxlab/jeton-api : il sert a appeler l API depuis la machine
+          sans jamais l ecrire sur une ligne de commande.

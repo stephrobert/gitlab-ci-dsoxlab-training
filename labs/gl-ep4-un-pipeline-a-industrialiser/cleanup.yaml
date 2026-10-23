@@ -1,0 +1,23 @@
+---
+# Joue par `dsoxlab clean` et `dsoxlab reset` : il remet la situation de
+# l epreuve. L essentiel vit dans `_commun/nettoyer.yaml` : le projet part avec
+# tout ce qu il porte (variables, verrous, environnement, etiquettes du
+# registre), puis la copie de travail. Le runner n est pas modifie par cette
+# epreuve. Le fichier de diagnostic du setup vit hors du depot et part a part.
+- name: Nettoyer l_epreuve gl-ep4-un-pipeline-a-industrialiser
+  hosts: lab_target
+  become: true
+  gather_facts: false
+  vars:
+    projet: "pipeline-craft"
+    gitlab_url: "http://gitlab-1.lab"
+    travail: "/opt/dsoxlab/gl-ep4"
+
+  tasks:
+    - name: Le projet et la copie de travail partent
+      ansible.builtin.include_tasks: ../_commun/nettoyer.yaml
+
+    - name: Le fichier de diagnostic du setup part
+      ansible.builtin.file:
+        path: /var/tmp/gl-ep4-diagnostic-depart.txt
+        state: absent

@@ -1,0 +1,31 @@
+id: gl-21-activer-les-scanners
+title: Turn the scanners on, and read what they say
+level: l1
+description: 'The pipeline tests the application and publishes nothing about its security:
+  no scanner runs, and a GitLab token sits hard-coded in `app/config.py`. Turn SAST
+  and Secret Detection on, read the JSON reports they produce, remove the token and
+  prove with a new scan that it is gone. Grading is taken on the reports the forge
+  really holds, not on the file you wrote.'
+skills:
+- gitlab-ci
+- sast
+- secret-detection
+- security-reports
+- artifacts-reports
+distros:
+- ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/securite-scanners/
+lab_type: lab
+estimated_time: 40m
+runtime:
+  type: vm
+  session: local
+  targets:
+  - name: gitlab
+    host: gitlab-1.lab
+    label_en: Ubuntu 24.04, GitLab CE and its runner
+    label_fr: Ubuntu 24.04, GitLab CE et son runner
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false

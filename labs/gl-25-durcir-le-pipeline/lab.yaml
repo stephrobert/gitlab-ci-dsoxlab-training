@@ -1,0 +1,24 @@
+id: gl-25-durcir-le-pipeline
+title: Harden the runner, and close what was wide open
+level: l1
+description: 'A pipeline runs on a runner that is wide open: its jobs are privileged, any image runs on it, and the container keeps every Linux capability. The pipeline replays two attacks against that runner, and both succeed. Harden the runner configuration (no privileged mode, a list of allowed images, capabilities dropped), then run the pipeline again and prove the two attacks are now blocked while the legitimate job still passes. Graded on the runner configuration and on what the job logs show, never on a file in the repository. Docker-in-Docker no longer works on a hardened runner: the lab says so, and does not practise the workaround.'
+skills:
+- gitlab-ci
+- ci.runner.harden
+distros:
+- ubuntu24
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/durcissement/
+lab_type: lab
+estimated_time: 50m
+runtime:
+  type: vm
+  session: local
+  targets:
+  - name: gitlab
+    host: gitlab-1.lab
+    label_en: Ubuntu 24.04, GitLab CE and its runner
+    label_fr: Ubuntu 24.04, GitLab CE et son runner
+  default: gitlab
+validation:
+  functional: true
+  persistence_after_reboot: false
