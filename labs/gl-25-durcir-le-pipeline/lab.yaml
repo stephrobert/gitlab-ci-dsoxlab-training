@@ -10,6 +10,15 @@ distros:
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/durcissement/
 lab_type: lab
 estimated_time: 50m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 2 : « Install, configure, and manage GitLab Runners across
+#   different environments and executors »
+# La configuration du runner elle-meme : privileged retire, images autorisees
+# listees, capacites abandonnees, eprouvee par deux attaques rejouees.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   session: local

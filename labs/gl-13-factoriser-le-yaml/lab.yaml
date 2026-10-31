@@ -11,9 +11,18 @@ skills:                       # REQUIS, non vide
   - refactoring
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-13-extends-anchors/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/industrialisation/extends-anchors/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 30m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 1 : « Create and configure .gitlab-ci.yml files with proper YAML
+#   syntax, variables, artifacts, and caching strategies »
+# Ancre YAML et job cache avec extends : la « proper YAML syntax » de
+# l'objectif, notee sur la configuration fusionnee.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

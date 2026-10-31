@@ -11,9 +11,18 @@ skills:                       # REQUIS, non vide
   - supply-chain
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-09-publier-registry/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/registries/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 30m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 3 : « Build and manage container images and packages using
+#   GitLab's integrated registries »
+# Publication de l'image au Container Registry du projet, sous un tag qui nomme
+# le commit, depuis le pipeline lui-meme.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

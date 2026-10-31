@@ -12,9 +12,21 @@ skills:                       # REQUIS, non vide
   - reliability
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-18-fiabilite/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/industrialisation/fiabilite/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 40m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 5 : « Diagnose pipeline failures and optimize performance using
+#   best practices and troubleshooting techniques »
+# - objectif 6 : « pipeline development with stages, jobs, and DAG
+#   architectures »
+# Relance ciblee sur les seuls echecs d'infrastructure, timeouts explicites et
+# verrou de deploiement ; la reparation initiale porte sur un job range dans
+# une etape que stages: ne declare pas.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

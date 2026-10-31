@@ -11,9 +11,18 @@ skills:                       # REQUIS, non vide
   - artifacts
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-10-rapports-qualite/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/rapports-qualite/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 30m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 1 : « Create and configure .gitlab-ci.yml files with proper YAML
+#   syntax, variables, artifacts, and caching strategies »
+# Second type de rapport d'artefact : coverage_report publie et couverture
+# remontee au pipeline.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

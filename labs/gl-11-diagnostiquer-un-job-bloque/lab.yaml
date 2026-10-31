@@ -11,9 +11,20 @@ skills:                       # REQUIS, non vide
   - workflow
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-11-debugger-job-bloque/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/debug-pending/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 35m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 5 : « Diagnose pipeline failures and optimize performance using
+#   best practices and troubleshooting techniques »
+# - objectif 2 : « Install, configure, and manage GitLab Runners across
+#   different environments and executors »
+# Deux pannes sans message : aucun pipeline ne nait, puis un job reste en
+# attente d'un runner dont les tags ne correspondent pas.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

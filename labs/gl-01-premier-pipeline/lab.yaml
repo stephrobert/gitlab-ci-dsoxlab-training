@@ -11,9 +11,20 @@ skills:                       # REQUIS, non vide
   - jobs
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-01-premier-pipeline/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/premier-pipeline/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 45m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 1 : « Create and configure .gitlab-ci.yml files with proper YAML
+#   syntax, variables, artifacts, and caching strategies »
+# - objectif 6 : « pipeline development with stages, jobs, and DAG
+#   architectures »
+# Le lab ecrit le .gitlab-ci.yml de zero (stages, jobs, scripts, variables) et
+# il est note sur le pipeline que le serveur a execute.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session, comme sur `cicd-dsoxlab-training` :

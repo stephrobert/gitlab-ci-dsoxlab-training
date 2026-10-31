@@ -18,6 +18,19 @@ distros:                      # REQUIS, non vide
   - ubuntu24
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/validation/   # REQUIS, http(s)
 estimated_time: 60m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 2 : « Install, configure, and manage GitLab Runners across
+#   different environments and executors »
+# - objectif 3 : « Build and manage container images and packages using
+#   GitLab's integrated registries »
+# - objectif 5 : « Diagnose pipeline failures and optimize performance using
+#   best practices and troubleshooting techniques »
+# Epreuve C2 : un job qui attend un runner inexistant, a diagnostiquer, et une
+# image qui doit exister ailleurs que dans le runner.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

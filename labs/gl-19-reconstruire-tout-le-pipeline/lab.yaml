@@ -13,7 +13,7 @@ skills:                       # REQUIS, non vide
   - reliability
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-19-capstone-industriel/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/industrialisation/capstone/   # REQUIS, http(s)
 # `capstone`, et non `lab` : ce travail part d'un depot sans aucun fichier de
 # CI, avec un cahier des charges pour seul enonce, et il tient l'epreuve de fin
 # du niveau c3 du parcours `gitlab-ci`. La declaration compte : le controle
@@ -22,6 +22,19 @@ doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-19-
 # certification (cka, ckad, cks) : un capstone n'est pas un challenge.
 lab_type: capstone
 estimated_time: 90m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 1 : « Create and configure .gitlab-ci.yml files with proper YAML
+#   syntax, variables, artifacts, and caching strategies »
+# - objectif 3 : « Build and manage container images and packages using
+#   GitLab's integrated registries »
+# - objectif 6 : « pipeline development with stages, jobs, and DAG
+#   architectures »
+# Capstone : cinq etapes, matrice avec rapports, enfant dynamique et image
+# publiee au registre, sur specification et sans pas-a-pas.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-même sa session : une forge se manipule depuis sa

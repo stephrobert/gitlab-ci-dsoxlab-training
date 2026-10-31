@@ -44,10 +44,12 @@ infra:
 # formation qu'il valide, sinon on tient deux découpages en parallèle, ce que
 # la règle K du socle interdit.
 #
-# La section `securiser` est VIDE, et c'est voulu : c'est le trou que l'audit
-# du 2026-10-21 a trouvé. Tout le niveau C4 (sept leçons de sécurité, trois
-# d'outillage) n'a aucune pratique. Une section vide le montre ; l'absence de
-# section le cacherait.
+# La section `securiser` a ete COMBLEE le 2026-10-23 : elle portait le trou du
+# niveau C4 trouve par l'audit du 2026-10-21, et elle compte desormais sept labs
+# attestes VALIDE, gl-20 a gl-25 plus l'epreuve gl-ep3. Ce commentaire disait
+# encore « section VIDE » au-dessus de ses propres labs : un audit l'a releve le
+# 2026-10-23. Un fichier contractuel qui decrit un etat revolu est pire qu'un
+# fichier muet, puisqu'on le lit sans le verifier.
 sections:
   - id: ecrire
     title: "Write a pipeline and read its failures"

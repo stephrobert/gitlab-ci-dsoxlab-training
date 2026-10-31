@@ -12,6 +12,17 @@ distros:
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/supply-chain/
 lab_type: lab
 estimated_time: 40m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 4 : « Implement security scanning tools within CI/CD workflows and
+#   interpret vulnerability reports »
+# - objectif 3 : « Build and manage container images and packages using
+#   GitLab's integrated registries »
+# Scan de l'image publiee, rapport garde meme en echec, pipeline rouge sur une
+# vulnerabilite critique et exception unique justifiee.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   session: local

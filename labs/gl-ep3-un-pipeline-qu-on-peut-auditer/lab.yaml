@@ -18,6 +18,17 @@ distros:                      # REQUIS, non vide
   - ubuntu24
 doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/validation/   # REQUIS, http(s)
 estimated_time: 75m
+# Certification GitLab Certified CI/CD Associate. Objectifs releves sur
+# university.gitlab.com le 2026-10-22, recopies verbatim :
+# - objectif 4 : « Implement security scanning tools within CI/CD workflows and
+#   interpret vulnerability reports »
+# - objectif 1 : « Create and configure .gitlab-ci.yml files with proper YAML
+#   syntax, variables, artifacts, and caching strategies »
+# Epreuve C4 : aucun scanner n'a jamais tourne, et le secret de deploiement
+# voyage sur toutes les branches et dans les journaux.
+certification_tags:
+  - gl-cicd-associate
+
 runtime:
   type: vm
   # L'apprenant ouvre lui-meme sa session : une forge se manipule depuis sa
