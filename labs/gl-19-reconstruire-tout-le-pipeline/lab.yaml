@@ -13,7 +13,7 @@ skills:                       # REQUIS, non vide
   - reliability
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-19-capstone-industriel/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/industrialisation/capstone/   # REQUIS, http(s)
 # `capstone`, et non `lab` : ce travail part d'un depot sans aucun fichier de
 # CI, avec un cahier des charges pour seul enonce, et il tient l'epreuve de fin
 # du niveau c3 du parcours `gitlab-ci`. La declaration compte : le controle

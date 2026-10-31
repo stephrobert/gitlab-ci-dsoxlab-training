@@ -11,7 +11,7 @@ skills:                       # REQUIS, non vide
   - workflow
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-11-debugger-job-bloque/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/debug-pending/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 35m
 # Certification GitLab Certified CI/CD Associate. Objectifs releves sur

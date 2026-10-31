@@ -11,7 +11,7 @@ skills:                       # REQUIS, non vide
   - supply-chain
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-09-publier-registry/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/registries/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 30m
 # Certification GitLab Certified CI/CD Associate. Objectifs releves sur

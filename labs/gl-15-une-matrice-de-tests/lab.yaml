@@ -11,7 +11,7 @@ skills:                       # REQUIS, non vide
   - needs
 distros:                      # REQUIS, non vide
   - ubuntu24
-doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-15-matrices/   # REQUIS, http(s)
+doc_url: https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/industrialisation/matrices/   # REQUIS, http(s)
 lab_type: lab
 estimated_time: 35m
 runtime:
