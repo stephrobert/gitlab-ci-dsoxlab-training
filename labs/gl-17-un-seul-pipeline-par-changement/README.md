@@ -4,7 +4,7 @@ A runner queue that doubled without a single job being added: every push to a
 branch with an open merge request produces two pipelines for the same commit.
 
 Companion lesson:
-[Workflows](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-17-workflows/).
+[Workflows](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-17-workflows/) (in French).
 
 ```bash
 dsoxlab run gl-17-un-seul-pipeline-par-changement

@@ -4,7 +4,7 @@ A plain-text password in two places, and a job that prints it. Remove it,
 declare it masked and protected in the forge, and prove it no longer leaks.
 
 Companion lesson:
-[Get the secrets out](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-05-sortir-les-secrets/).
+[Get the secrets out](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-05-sortir-les-secrets/) (in French).
 
 ```bash
 dsoxlab run gl-05-sortir-les-secrets

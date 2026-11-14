@@ -4,7 +4,7 @@ A push that produces no pipeline, then a job that waits forever without
 failing. Two failures with no message, the most expensive kind to diagnose.
 
 Companion lesson:
-[Debug a stuck job](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-11-debugger-job-bloque/).
+[Debug a stuck job](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-11-debugger-job-bloque/) (in French).
 
 ```bash
 dsoxlab run gl-11-diagnostiquer-un-job-bloque

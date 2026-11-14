@@ -5,7 +5,7 @@ nobody has ever seen. You turn on SAST and Secret Detection, you read their JSON
 reports, and you fix what they point at.
 
 Companion lesson:
-[Security scanners](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/securite-scanners/).
+[Security scanners](https://www.stephane-robert.info/en/docs/pipeline-cicd/gitlab/fondamentaux/securite-scanners/).
 
 ```bash
 dsoxlab run gl-21-activer-les-scanners

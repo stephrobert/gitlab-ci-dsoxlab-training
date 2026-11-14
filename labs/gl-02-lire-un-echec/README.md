@@ -4,7 +4,7 @@ A red pipeline, three bugs, and their clues in GitLab's messages. Diagnose
 before fixing, instead of re-running "just in case".
 
 Companion lesson:
-[Read a failure and fix it](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-02-lire-un-echec/).
+[Read a failure and fix it](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-02-lire-un-echec/) (in French).
 
 ```bash
 dsoxlab run gl-02-lire-un-echec

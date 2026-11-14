@@ -5,7 +5,7 @@ coverage, have GitLab fish it out, and publish the report that shows the
 missing lines.
 
 Companion lesson:
-[Quality reports](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-10-rapports-qualite/).
+[Quality reports](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-10-rapports-qualite/) (in French).
 
 ```bash
 dsoxlab run gl-10-rapports-de-qualite

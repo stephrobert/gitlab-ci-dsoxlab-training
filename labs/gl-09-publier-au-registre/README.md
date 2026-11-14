@@ -4,7 +4,7 @@ An image built on every run and thrown away with its job. Publish it from the
 pipeline, under a tag that names the commit.
 
 Companion lesson:
-[Publish to the registry](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-09-publier-registry/).
+[Publish to the registry](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-09-publier-registry/) (in French).
 
 ```bash
 dsoxlab run gl-09-publier-au-registre

@@ -5,7 +5,7 @@ all: no timeout, no retry, and two deployments that can start together on the
 same environment.
 
 Companion lesson:
-[Reliability](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-18-fiabilite/).
+[Reliability](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-18-fiabilite/) (in French).
 
 ```bash
 dsoxlab run gl-18-fiabiliser-sans-masquer

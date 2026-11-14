@@ -4,7 +4,7 @@ End of level 2. A chain that builds, tests and deploys without leaving the
 slightest trace of what it shipped, and a pipeline that never finishes.
 
 Level plan:
-[GitLab CI/CD labs](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/).
+[GitLab CI/CD labs](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/) (in French).
 
 ```bash
 dsoxlab run gl-ep2-une-livraison-tracable

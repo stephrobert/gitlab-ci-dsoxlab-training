@@ -4,7 +4,7 @@ A refused pipeline, a fault the refusal hides, and a third one GitLab accepts
 without a word. Find them without pushing to see.
 
 Companion lesson:
-[Validate a pipeline](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-07-valider-pipeline/).
+[Validate a pipeline](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-07-valider-pipeline/) (in French).
 
 ```bash
 dsoxlab run gl-07-valider-avant-de-pousser
