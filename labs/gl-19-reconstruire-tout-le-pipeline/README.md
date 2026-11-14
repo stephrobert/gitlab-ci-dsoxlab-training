@@ -4,7 +4,7 @@ The course's synthesis test. The repository has no CI file left: a
 specification, and everything to rebuild.
 
 Companion lesson:
-[Industrial capstone](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-19-capstone-industriel/).
+[Industrial capstone](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-19-capstone-industriel/) (in French).
 
 ```bash
 dsoxlab run gl-19-reconstruire-tout-le-pipeline

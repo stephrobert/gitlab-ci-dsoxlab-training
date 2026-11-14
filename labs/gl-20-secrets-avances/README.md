@@ -6,7 +6,7 @@ variable, then renew the token without interrupting the service: the new one
 first, proof by a pipeline, revocation of the old one afterwards.
 
 Companion lesson:
-[Secrets management in GitLab CI](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/secrets/).
+[Secrets management in GitLab CI](https://www.stephane-robert.info/en/docs/pipeline-cicd/gitlab/securite/secrets/).
 
 ```bash
 dsoxlab run gl-20-secrets-avances

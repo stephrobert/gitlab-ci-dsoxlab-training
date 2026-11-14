@@ -6,7 +6,7 @@ report, block the pipeline on a critical, and rule out the single finding the
 security team triaged, writing why.
 
 Companion lesson:
-[Security scanners](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/fondamentaux/securite-scanners/).
+[Security scanners](https://www.stephane-robert.info/en/docs/pipeline-cicd/gitlab/fondamentaux/securite-scanners/).
 
 ```bash
 dsoxlab run gl-22-scanner-les-images

@@ -5,7 +5,7 @@ it: both succeed. You harden the runner configuration, run the pipeline again,
 and prove the two attacks are now blocked while the legitimate job still passes.
 
 Companion lesson:
-[GitLab CI: harden your pipelines in 10 measures](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/durcissement/).
+[GitLab CI: harden your pipelines in 10 measures](https://www.stephane-robert.info/en/docs/pipeline-cicd/gitlab/securite/durcissement/).
 
 ```bash
 dsoxlab run gl-25-durcir-le-pipeline

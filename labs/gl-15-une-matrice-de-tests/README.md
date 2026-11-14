@@ -5,7 +5,7 @@ matrix, make it vary something real, and tie the build to all of its
 combinations.
 
 Companion lesson:
-[Matrices](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-15-matrices/).
+[Matrices](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-15-matrices/) (in French).
 
 ```bash
 dsoxlab run gl-15-une-matrice-de-tests

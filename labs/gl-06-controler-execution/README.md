@@ -5,7 +5,7 @@ Every job runs on every push, and nothing is deployed. Set a global
 production one.
 
 Companion lesson:
-[Control execution](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-06-controler-execution/).
+[Control execution](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-06-controler-execution/) (in French).
 
 ```bash
 dsoxlab run gl-06-controler-execution

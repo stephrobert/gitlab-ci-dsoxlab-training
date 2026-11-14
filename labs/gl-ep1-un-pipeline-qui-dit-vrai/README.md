@@ -4,7 +4,7 @@ End of level 1. A green pipeline that guarantees almost none of what it shows:
 four promises, none of them kept, and no defect named.
 
 Level plan:
-[GitLab CI/CD labs](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/).
+[GitLab CI/CD labs](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/) (in French).
 
 ```bash
 dsoxlab run gl-ep1-un-pipeline-qui-dit-vrai

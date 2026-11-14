@@ -6,7 +6,7 @@ you require a successful pipeline and resolved discussions before any merge, and
 you prove the locks still let a legitimate deployment through.
 
 Companion lesson:
-[GitLab CI: protected branches and tags](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/branches-protegees/).
+[GitLab CI: protected branches and tags](https://www.stephane-robert.info/en/docs/pipeline-cicd/gitlab/securite/branches-protegees/).
 
 ```bash
 dsoxlab run gl-24-proteger-les-merges

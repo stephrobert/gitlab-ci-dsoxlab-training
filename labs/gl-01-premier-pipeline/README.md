@@ -4,7 +4,7 @@ Make GitLab run what your machine already runs: code style, the test suite and
 the image build, as visible stages, and green.
 
 Companion lesson:
-[Your first pipeline](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-01-premier-pipeline/).
+[Your first pipeline](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-01-premier-pipeline/) (in French).
 
 ```bash
 dsoxlab run gl-01-premier-pipeline

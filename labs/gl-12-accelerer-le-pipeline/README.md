@@ -5,7 +5,7 @@ key changes on every commit, so it never crosses two commits. And jobs waiting
 for a stage they do not need.
 
 Companion lesson:
-[Speed up the pipeline](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-12-accelerer-pipeline/).
+[Speed up the pipeline](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-12-accelerer-pipeline/) (in French).
 
 ```bash
 dsoxlab run gl-12-accelerer-le-pipeline

@@ -5,7 +5,7 @@ night, and a neighbouring team that would like to re-run it without an account
 on the forge.
 
 Companion lesson:
-[Trigger a pipeline](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-08-declencher-pipeline/).
+[Trigger a pipeline](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-08-declencher-pipeline/) (in French).
 
 ```bash
 dsoxlab run gl-08-declencher-autrement
