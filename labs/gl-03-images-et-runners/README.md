@@ -5,7 +5,7 @@ image. Pick the image that matches each piece of work, and give the build job a
 daemon.
 
 Companion lesson:
-[Images and runners](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-03-images-et-runners/).
+[Images and runners](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-03-images-et-runners/) (in French).
 
 ```bash
 dsoxlab run gl-03-images-et-runners

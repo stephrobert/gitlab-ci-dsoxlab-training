@@ -8,7 +8,7 @@ pipeline from a specification, with hints. Here a pipeline already exists, and
 you must diagnose what is wrong with it.
 
 Level plan:
-[GitLab CI/CD labs](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/).
+[GitLab CI/CD labs](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/) (in French).
 
 ```bash
 dsoxlab run gl-ep4-un-pipeline-a-industrialiser

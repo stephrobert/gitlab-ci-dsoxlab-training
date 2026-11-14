@@ -4,7 +4,7 @@ Two jobs declaring the same image and the same cache, word for word. Factor
 them with a hidden job and an anchor, without changing the behaviour.
 
 Companion lesson:
-[extends and anchors](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-13-extends-anchors/).
+[extends and anchors](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-13-extends-anchors/) (in French).
 
 ```bash
 dsoxlab run gl-13-factoriser-le-yaml

@@ -5,7 +5,7 @@ fit that mould. Generate a child pipeline during the run, trigger it, and make
 the parent wait.
 
 Companion lesson:
-[Dynamic pipelines](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-16-pipelines-dynamiques/).
+[Dynamic pipelines](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-16-pipelines-dynamiques/) (in French).
 
 ```bash
 dsoxlab run gl-16-un-pipeline-enfant

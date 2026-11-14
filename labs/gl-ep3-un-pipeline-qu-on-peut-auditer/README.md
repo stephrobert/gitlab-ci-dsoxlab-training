@@ -4,7 +4,7 @@ End of level 4. A green pipeline that deploys to production, and that nobody
 could vouch for before an auditor.
 
 Level plan:
-[GitLab CI/CD labs](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/).
+[GitLab CI/CD labs](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/) (in French).
 
 ```bash
 dsoxlab run gl-ep3-un-pipeline-qu-on-peut-auditer

@@ -6,7 +6,7 @@ SBOM), sign it with cosign, attest its provenance, then add a verification that
 refuses an image without a signature, and you prove it.
 
 Companion lesson:
-[GitLab CI: securing the supply chain with SBOMs and attestations](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/securite/supply-chain/).
+[GitLab CI: securing the supply chain with SBOMs and attestations](https://www.stephane-robert.info/en/docs/pipeline-cicd/gitlab/securite/supply-chain/).
 
 ```bash
 dsoxlab run gl-23-supply-chain-tracable

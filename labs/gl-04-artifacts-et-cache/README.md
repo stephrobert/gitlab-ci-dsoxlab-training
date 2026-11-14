@@ -5,7 +5,7 @@ test results vanish with the job. Tell the cache, which avoids rebuilding,
 apart from the artifact, which carries a result.
 
 Companion lesson:
-[Artifacts and cache](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-04-artifacts-et-cache/).
+[Artifacts and cache](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-04-artifacts-et-cache/) (in French).
 
 ```bash
 dsoxlab run gl-04-artifacts-et-cache

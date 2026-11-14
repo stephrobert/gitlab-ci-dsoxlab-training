@@ -5,7 +5,7 @@ into included files, and keep at the centre what says the order and the
 trigger.
 
 Companion lesson:
-[Templates and include](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-14-templates-include/).
+[Templates and include](https://www.stephane-robert.info/docs/pipeline-cicd/gitlab/labs/lab-14-templates-include/) (in French).
 
 ```bash
 dsoxlab run gl-14-externaliser-les-jobs
