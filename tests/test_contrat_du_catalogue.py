@@ -7,6 +7,7 @@ dépôt-ci promet en plus, et que l'outil ne peut pas connaître.
 from __future__ import annotations
 
 import pathlib
+import subprocess
 
 import pytest
 import yaml
@@ -105,3 +106,32 @@ def test_parite_des_langues() -> None:
                 boiteux.append(f"{base.name}/{nom}")
 
     assert not boiteux, f"traduits d'un seul côté : {boiteux}"
+
+
+def test_aucune_solution_en_clair_nest_suivie_par_git() -> None:
+    """`.gitignore` n'agit pas sur un fichier DÉJÀ suivi.
+
+    Le 2026-10-23, `solution-en-clair/gl-24-proteger-les-merges` est parti dans
+    le dépôt public alors que le répertoire était ignoré. On interroge donc
+    l'index de git, et jamais la règle d'exclusion.
+    """
+    suivis = subprocess.run(
+        ["git", "ls-files", "--", "solution-en-clair", "solution"],
+        cwd=RACINE, capture_output=True, text=True, check=True,
+    ).stdout.splitlines()
+    assert any(f.startswith("solution/") for f in suivis), (
+        "git ne liste aucun fichier sous solution/ : le contrôle n'a rien regardé."
+    )
+    en_clair = [f for f in suivis if f.startswith("solution-en-clair/")]
+    assert not en_clair, (
+        f"Solutions en clair suivies par git : {en_clair}. "
+        "Retirez-les par `git rm --cached`, le fichier local reste."
+    )
+    non_chiffrees = [
+        f
+        for f in suivis
+        if f.startswith("solution/")
+        and f.endswith("solution.yaml")
+        and not (RACINE / f).read_bytes().startswith(b"$ANSIBLE_VAULT;")
+    ]
+    assert not non_chiffrees, f"Solutions non chiffrées : {non_chiffrees}."
