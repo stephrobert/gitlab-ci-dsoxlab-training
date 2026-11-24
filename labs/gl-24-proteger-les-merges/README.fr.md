@@ -28,5 +28,5 @@ conditions de fusion. Un `.gitlab-ci.yml` n'en prouve aucun.
 - vérifier qu'un verrou protège sans bloquer le déploiement légitime.
 
 Ce lab n'exige aucun service payant ni édition Premium ou Ultimate de GitLab. La
-règle d'approbation et l'environnement protégé, qui demandent une licence, est nommée dans le scénario et
+règle d'approbation et l'environnement protégé, qui demandent une licence, est nommée dans l'énoncé et
 n'est pas pratiquée.
