@@ -28,5 +28,5 @@ conditions. A `.gitlab-ci.yml` proves none of them.
 - check that a lock protects without blocking the legitimate deployment.
 
 This lab needs no paid service and no Premium or Ultimate GitLab edition. The
-approval rule and the protected environment, which do need a licence, is named in the scenario and not
+approval rule and the protected environment, which do need a licence, is named in the brief and not
 practised.
